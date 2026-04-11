@@ -1383,6 +1383,63 @@ function useMindmap(sbSession) {
     if (activeProjectId === pid) switchProject(np[0].id);
   }, [projects, activeProjectId, persistProjects, switchProject]);
 
+  const importProjectsFromJson = useCallback((importedProjects, mode, session) => {
+    /* Read fresh projects from state to avoid stale closures */
+    const currentProjects = loadLS(MM_PROJECTS_KEY, []);
+
+    if (mode === 'replace') {
+      /* Remove all existing project data */
+      currentProjects.forEach(p => {
+        try { localStorage.removeItem(MM_DATA_PREFIX + p.id); } catch(e) {}
+        if (session) deleteSB(MM_DATA_PREFIX + p.id);
+      });
+      /* Save imported projects and their nodes */
+      const projList = importedProjects.map(p => ({ id: p.id, name: p.name, color: p.color || '#4a9eff' }));
+      importedProjects.forEach(p => {
+        let importedNodes = p.nodes || [];
+        /* Safety: ensure at least a root node exists */
+        if (!importedNodes.length || !importedNodes.find(n => !n.parentId)) {
+          const rid = uuid();
+          importedNodes = [{ id: rid, parentId: null, title: p.name || 'Root', color: p.color || '#4a9eff', collapsed: false, children: [], notes: '', checked: false, linkedTaskId: null, notesExpanded: false, customX: null, customY: null, customWidth: null, customHeight: null }];
+        }
+        saveLS(MM_DATA_PREFIX + p.id, importedNodes);
+        if (session) saveSB(MM_DATA_PREFIX + p.id, importedNodes);
+      });
+      /* Update React state and switch to first imported project */
+      persistProjects(projList);
+      if (projList.length > 0) switchProject(projList[0].id);
+    } else {
+      /* Merge: add imported projects alongside existing, rename on conflict */
+      const existingNames = new Set(currentProjects.map(p => p.name));
+      const newProjects = [...currentProjects];
+      let lastNewId = null;
+      importedProjects.forEach(ip => {
+        let name = ip.name;
+        if (existingNames.has(name)) { let i = 2; while (existingNames.has(name + ' (' + i + ')')) i++; name = name + ' (' + i + ')'; }
+        const newId = uuid();
+        lastNewId = newId;
+        const nodeIdMap = {};
+        let nodes = (ip.nodes || []).map(n => { const nid = uuid(); nodeIdMap[n.id] = nid; return { ...n, id: nid }; });
+        nodes.forEach(n => {
+          if (n.parentId) n.parentId = nodeIdMap[n.parentId] || n.parentId;
+          if (n.children) n.children = n.children.map(c => nodeIdMap[c] || c);
+        });
+        /* Safety: ensure at least a root node exists */
+        if (!nodes.length || !nodes.find(n => !n.parentId)) {
+          const rid = uuid();
+          nodes = [{ id: rid, parentId: null, title: name, color: ip.color || '#4a9eff', collapsed: false, children: [], notes: '', checked: false, linkedTaskId: null, notesExpanded: false, customX: null, customY: null, customWidth: null, customHeight: null }];
+        }
+        newProjects.push({ id: newId, name, color: ip.color || '#4a9eff' });
+        existingNames.add(name);
+        saveLS(MM_DATA_PREFIX + newId, nodes);
+        if (session) saveSB(MM_DATA_PREFIX + newId, nodes);
+      });
+      /* Update React state and switch to first imported project */
+      persistProjects(newProjects);
+      if (lastNewId) switchProject(lastNewId);
+    }
+  }, [persistProjects, switchProject]);
+
   const findDescendants = useCallback(nodeId => {
     const desc = [], stack = [nodeId];
     while (stack.length) {
@@ -1546,7 +1603,7 @@ function useMindmap(sbSession) {
     nodes, rootId, selectedId, setSelectedId, persistNodes,
     addChild, deleteNode, renameNode, setNodeColor, toggleCollapse, moveNode, setNodePosition, setNodeSize,
     setNodeNotes, toggleNodeChecked, toggleNodeNotesExpanded, setNodeLinkedTask, syncNodeFromTask, findDescendants,
-    projects, activeProjectId, switchProject, addProject, renameProject, deleteProject, persistProjects,
+    projects, activeProjectId, switchProject, addProject, renameProject, deleteProject, persistProjects, importProjectsFromJson,
     defaultNodeColor, setDefaultNodeColor, copyNode, pasteNode, clipboardRef,
   };
 }
@@ -3156,20 +3213,30 @@ function TaskFlow({ session, onSignOut }){
                       background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:600,outline:'none'}}/>
                 </div>
               ):(
-                <button key={p.id} onClick={()=>mm.switchProject(p.id)}
-                  onDoubleClick={e=>{e.stopPropagation();setRenamingProjectId(p.id);setRenameProjectName(p.name);}}
-                  style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',
+                <div key={p.id} style={{display:'flex',alignItems:'center',width:'100%',
+                    borderLeft:isActive?'3px solid #4a9eff':'3px solid transparent',
                     background:isActive?'rgba(74,158,255,0.08)':'transparent',
+                  }}>
+                <button onClick={()=>mm.switchProject(p.id)}
+                  onDoubleClick={e=>{e.stopPropagation();setRenamingProjectId(p.id);setRenameProjectName(p.name);}}
+                  style={{display:'flex',alignItems:'center',gap:10,flex:1,border:'none',
+                    background:'transparent',
                     padding:'10px 16px',cursor:'pointer',
                     color:isActive?'#d0d4e0':'#606060',opacity:isActive?1:0.6,
                     transition:'all 0.15s',fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:isActive?600:400,
-                    borderLeft:isActive?'3px solid #4a9eff':'3px solid transparent',
                   }}
                   onMouseEnter={e=>{if(!isActive)e.currentTarget.style.opacity='0.8';}}
                   onMouseLeave={e=>{if(!isActive)e.currentTarget.style.opacity='0.6';}}>
                   <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'#4a9eff',flexShrink:0}}/>
                   <span style={{flex:1,textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</span>
                 </button>
+                {mm.projects.length>1&&<button
+                  onClick={e=>{e.stopPropagation();if(window.confirm('Delete project "'+p.name+'" and all its nodes? This cannot be undone.'))mm.deleteProject(p.id);}}
+                  style={{border:'none',background:'transparent',color:'#444',cursor:'pointer',padding:'4px 8px',fontSize:14,lineHeight:1,flexShrink:0,transition:'color 0.15s'}}
+                  onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'}
+                  onMouseLeave={e=>e.currentTarget.style.color='#444'}
+                  title={'Delete '+p.name}>×</button>}
+                </div>
               );
             })}
             {/* Add project */}
@@ -3546,41 +3613,7 @@ function TaskFlow({ session, onSignOut }){
         projects={mm.projects}
         projectCount={mm.projects.length}
         nodeCount={mm.projects.reduce((s,p)=>{const n=loadLS('taskflow-mm-'+p.id,[]);return s+n.length;},0)}
-        onImport={(importedProjects,mode)=>{
-          if(mode==='replace'){
-            /* Remove all existing project data */
-            mm.projects.forEach(p=>{try{localStorage.removeItem('taskflow-mm-'+p.id);}catch(e){} if(session)deleteSB('taskflow-mm-'+p.id);});
-            /* Save imported projects and their nodes */
-            const projList=importedProjects.map(p=>({id:p.id,name:p.name,color:p.color||'#4a9eff'}));
-            importedProjects.forEach(p=>{saveLS('taskflow-mm-'+p.id,p.nodes||[]); if(session)saveSB('taskflow-mm-'+p.id,p.nodes||[]);});
-            /* Update React state and switch to first imported project */
-            mm.persistProjects(projList);
-            mm.switchProject(projList[0].id);
-          }else{
-            /* Merge: add imported projects alongside existing, rename on conflict */
-            const existingNames=new Set(mm.projects.map(p=>p.name));
-            const newProjects=[...mm.projects];
-            let lastNewId=null;
-            importedProjects.forEach(ip=>{
-              let name=ip.name;
-              if(existingNames.has(name)){let i=2;while(existingNames.has(name+' ('+i+')'))i++;name=name+' ('+i+')';}
-              const newId=uuid();
-              lastNewId=newId;
-              const nodeIdMap={};
-              const nodes=(ip.nodes||[]).map(n=>{const nid=uuid();nodeIdMap[n.id]=nid;return{...n,id:nid};});
-              nodes.forEach(n=>{
-                if(n.parentId)n.parentId=nodeIdMap[n.parentId]||n.parentId;
-                if(n.children)n.children=n.children.map(c=>nodeIdMap[c]||c);
-              });
-              newProjects.push({id:newId,name,color:ip.color||'#4a9eff'});
-              existingNames.add(name);
-              saveLS('taskflow-mm-'+newId,nodes); if(session)saveSB('taskflow-mm-'+newId,nodes);
-            });
-            /* Update React state and switch to first imported project */
-            mm.persistProjects(newProjects);
-            if(lastNewId) mm.switchProject(lastNewId);
-          }
-        }}
+        onImport={(importedProjects,mode)=>mm.importProjectsFromJson(importedProjects,mode,session)}
       />}
       {claudePromptData&&<ClaudePromptModal
         onClose={()=>setClaudePromptData(null)}
