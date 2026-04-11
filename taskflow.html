@@ -1744,33 +1744,65 @@ function useMindmap(sbSession) {
     const desc = findDescendants(id);
     const allIds = [id, ...desc];
     const cloned = nodes.filter(n => allIds.includes(n.id)).map(n => ({ ...n }));
-    clipboardRef.current = cloned;
+    // Store the root ID explicitly so paste doesn't depend on array order
+    clipboardRef.current = { rootId: id, nodes: cloned };
   }, [nodes, findDescendants]);
 
   const pasteNode = useCallback(targetParentId => {
-    if (!clipboardRef.current || !clipboardRef.current.length) return null;
-    const cloned = clipboardRef.current;
+    if (!clipboardRef.current) return null;
+    // Support both old format (plain array) and new format ({ rootId, nodes })
+    const clipData = clipboardRef.current;
+    const cloned = Array.isArray(clipData) ? clipData : clipData.nodes;
+    const copiedRootId = Array.isArray(clipData) ? (clipData[0] && clipData[0].id) : clipData.rootId;
+    if (!cloned || !cloned.length || !copiedRootId) return null;
     // Build id mapping for fresh ids
     const idMap = new Map();
     cloned.forEach(n => idMap.set(n.id, uuid()));
-    // The first node in the clipboard is the root of the copied subtree
-    const rootCopy = cloned[0];
+    // Find the actual root of the copied subtree by stored ID
+    const rootCopy = cloned.find(n => n.id === copiedRootId) || cloned[0];
+    const newRootId = idMap.get(rootCopy.id);
+    // Create new nodes with remapped IDs and parentIds
     const newNodes = cloned.map(n => ({
       ...n,
       id: idMap.get(n.id),
       parentId: n.id === rootCopy.id ? targetParentId : (idMap.get(n.parentId) || targetParentId),
-      children: (n.children || []).map(c => idMap.get(c) || c),
+      children: [], // Will be rebuilt from parentId below
       linkedTaskId: null,
       customX: null, customY: null,
       collapseRelX: null, collapseRelY: null,
     }));
+    // Rebuild children arrays from parentId to guarantee consistency
+    // This ensures sidebar and auto-layout (which walk children arrays) match
+    // the canvas rendering (which uses parentId via buildTreeStructure)
+    const newNodeMap = new Map();
+    newNodes.forEach(n => newNodeMap.set(n.id, n));
+    newNodes.forEach(n => {
+      if (n.parentId !== targetParentId) {
+        const parent = newNodeMap.get(n.parentId);
+        if (parent) parent.children.push(n.id);
+      }
+    });
+    // Preserve original children order where possible: re-sort each node's children
+    // to match the order from the original cloned data
+    const reverseIdMap = new Map();
+    idMap.forEach((newId, oldId) => reverseIdMap.set(newId, oldId));
+    newNodes.forEach(n => {
+      const origId = reverseIdMap.get(n.id);
+      const origNode = origId && cloned.find(c => c.id === origId);
+      if (origNode && origNode.children && origNode.children.length > 0 && n.children.length > 1) {
+        const origOrder = origNode.children.map(c => idMap.get(c)).filter(Boolean);
+        n.children.sort((a, b) => {
+          const ai = origOrder.indexOf(a);
+          const bi = origOrder.indexOf(b);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
+      }
+    });
     let nn = [...nodes, ...newNodes];
-    const parent = nn.find(n => n.id === targetParentId);
-    if (parent) {
-      nn = nn.map(n => n.id === targetParentId ? { ...n, children: [...(n.children || []), idMap.get(rootCopy.id)] } : n);
-    }
+    // Add the pasted root to the target parent's children array
+    nn = nn.map(n => n.id === targetParentId ? { ...n, children: [...(n.children || []), newRootId] } : n);
     persistNodes(nn);
-    return idMap.get(rootCopy.id);
+    return newRootId;
   }, [nodes, persistNodes]);
 
   return {
@@ -3279,8 +3311,9 @@ function TaskFlow({ session, onSignOut }){
         <div style={{padding:sidebarOpen?'18px 16px 14px':'18px 10px 14px',display:'flex',alignItems:'center',gap:0,cursor:'pointer',borderBottom:'1px solid #2a2a2a'}}
           onClick={()=>setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen?(
-            <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1}}>
-              <span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span>
+            <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
+              <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
+              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.6</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
