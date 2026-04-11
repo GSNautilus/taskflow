@@ -12,14 +12,15 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;width:100%;overflow:hidden}
-body{background:#0d1117;color:#d0d4e0;font-family:'IBM Plex Sans',sans-serif}
+body{background:#1a1a1a;color:#d0d4e0;font-family:'IBM Plex Sans',sans-serif}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#1e2438;border-radius:3px}
-input::placeholder{color:#3a3e50!important}
+::-webkit-scrollbar-thumb{background:#333333;border-radius:3px}
+input::placeholder{color:#555555!important}
 input[type="color"]{-webkit-appearance:none;border:none;cursor:pointer}
 input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
 input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
+@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 </style>
 </head>
 <body>
@@ -193,7 +194,7 @@ function importFromXlsx(file){
         const wb=XLSX.read(data,{type:'array',cellDates:true});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{defval:null});
-        const STATUS_MAP={'x':'x','s':'s'};
+        const STATUS_MAP={'x':'x','s':'s','t':'t','w':'w','m':'m','l':'l','u':'u'};
         const tasks=[];
         for(const row of rows){
           const title=row['Todo 2026']||row['Todo']||row['Title']||row['title']||row['Task'];
@@ -317,7 +318,7 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
 
   return(
     <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
-      <div ref={ref} style={{background:'#141822',border:'1px solid #1e2438',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+      <div ref={ref} style={{background:'#242424',border:'1px solid #333333',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
           <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0}}>Import / Export</h2>
           <button onClick={onClose} style={{border:'none',background:'transparent',color:'#555',fontSize:22,cursor:'pointer',padding:'0 4px'}}
@@ -333,14 +334,14 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
             onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
             style={{
-              border:dragOver?'2px solid #4a9eff':'2px dashed #2a2e3e',
+              border:dragOver?'2px solid #4a9eff':'2px dashed #3a3a3a',
               borderRadius:10,padding:'24px 16px',textAlign:'center',cursor:'pointer',
-              background:dragOver?'rgba(74,158,255,0.06)':'#0d1117',
+              background:dragOver?'rgba(74,158,255,0.06)':'#1a1a1a',
               transition:'all 0.15s',
             }}>
             <div style={{fontSize:28,marginBottom:8}}>{dragOver?'📂':'📄'}</div>
             <div style={{fontSize:14,color:'#6a7090',marginBottom:4}}>Drop a file here or click to browse</div>
-            <div style={{fontSize:12,color:'#3a4060',fontFamily:"'JetBrains Mono',monospace"}}>.xlsx or .json</div>
+            <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>.xlsx or .json</div>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.json" style={{display:'none'}} onChange={e=>handleFile(e.target.files[0])}/>
           </div>
 
@@ -349,13 +350,13 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
             {[{key:'merge',label:'Merge',desc:'Add to existing tasks'},{key:'replace',label:'Replace',desc:'Clear & replace all tasks'}].map(m=>(
               <button key={m.key} onClick={()=>setImportMode(m.key)}
                 style={{
-                  flex:1,border:importMode===m.key?'1.5px solid #4a9eff':'1.5px solid #1e2438',
+                  flex:1,border:importMode===m.key?'1.5px solid #4a9eff':'1.5px solid #333333',
                   borderRadius:8,padding:'8px 12px',cursor:'pointer',
-                  background:importMode===m.key?'rgba(74,158,255,0.08)':'#0d1117',
+                  background:importMode===m.key?'rgba(74,158,255,0.08)':'#1a1a1a',
                   textAlign:'left',transition:'all 0.15s',
                 }}>
                 <div style={{fontSize:13,fontWeight:600,color:importMode===m.key?'#4a9eff':'#6a7090'}}>{m.label}</div>
-                <div style={{fontSize:11,color:'#3a4060',marginTop:2}}>{m.desc}</div>
+                <div style={{fontSize:11,color:'#606060',marginTop:2}}>{m.desc}</div>
               </button>
             ))}
           </div>
@@ -365,22 +366,149 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
         <div>
           <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:16}}>📤</span> Export Tasks
-            <span style={{fontSize:12,color:'#3a4060',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{taskCount} tasks</span>
+            <span style={{fontSize:12,color:'#606060',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{taskCount} tasks</span>
           </div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={onExportJson}
-              style={{flex:1,border:'1.5px solid #1e2438',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#0d1117',textAlign:'left',transition:'all 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#1e2438'}>
+              style={{flex:1,border:'1.5px solid #333333',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#1a1a1a',textAlign:'left',transition:'all 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#333333'}>
               <div style={{fontSize:14,fontWeight:600,color:'#d0d4e0'}}>TaskFlow JSON</div>
-              <div style={{fontSize:11,color:'#3a4060',marginTop:3}}>Full data, re-importable into TaskFlow</div>
+              <div style={{fontSize:11,color:'#606060',marginTop:3}}>Full data, re-importable into TaskFlow</div>
             </button>
             <button onClick={onExportXlsx}
-              style={{flex:1,border:'1.5px solid #1e2438',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#0d1117',textAlign:'left',transition:'all 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#1e2438'}>
+              style={{flex:1,border:'1.5px solid #333333',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#1a1a1a',textAlign:'left',transition:'all 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#333333'}>
               <div style={{fontSize:14,fontWeight:600,color:'#d0d4e0'}}>Excel (.xlsx)</div>
-              <div style={{fontSize:11,color:'#3a4060',marginTop:3}}>Spreadsheet format, re-importable</div>
+              <div style={{fontSize:11,color:'#606060',marginTop:3}}>Spreadsheet format, re-importable</div>
             </button>
           </div>
+        </div>
+
+        {/* Status message */}
+        {status&&(
+          <div style={{marginTop:14,padding:'8px 12px',borderRadius:6,fontSize:13,fontFamily:"'JetBrains Mono',monospace",
+            background:status.type==='success'?'rgba(110,207,110,0.1)':(status.type==='error'?'rgba(255,107,107,0.1)':'rgba(74,158,255,0.1)'),
+            color:status.type==='success'?'#6ecf6e':(status.type==='error'?'#ff6b6b':'#4a9eff'),
+          }}>{status.msg}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Mindmap Import/Export ── */
+function exportMindmapJson(projects){
+  const data={version:1,type:'taskflow-mindmap',exportedAt:new Date().toISOString(),projects:projects.map(p=>{
+    const nodes=loadLS('taskflow-mm-'+p.id,[]); return{...p,nodes};
+  })};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='mindmap-export-'+new Date().toISOString().split('T')[0]+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importMindmapJson(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const data=JSON.parse(e.target.result);
+        if(data.type!=='taskflow-mindmap'||!Array.isArray(data.projects)){reject(new Error('Not a valid TaskFlow mindmap export'));return;}
+        resolve(data.projects);
+      }catch(err){reject(err);}
+    };
+    reader.onerror=()=>reject(new Error('Failed to read file'));
+    reader.readAsText(file);
+  });
+}
+
+function MindmapImportExportModal({onClose,projects,onImport,nodeCount,projectCount}){
+  const ref=useRef(null);
+  const fileRef=useRef(null);
+  const[dragOver,setDragOver]=useState(false);
+  const[status,setStatus]=useState(null);
+  const[importMode,setImportMode]=useState('merge');
+
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};
+    document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
+  },[onClose]);
+
+  const handleFile=async(file)=>{
+    if(!file)return;
+    if(!file.name.endsWith('.json')){setStatus({type:'error',msg:'Only .json files are supported'});return;}
+    setStatus({type:'loading',msg:'Importing...'});
+    try{
+      const importedProjects=await importMindmapJson(file);
+      onImport(importedProjects,importMode);
+      const totalNodes=importedProjects.reduce((s,p)=>s+(p.nodes?p.nodes.length:0),0);
+      setStatus({type:'success',msg:'Imported '+importedProjects.length+' project'+(importedProjects.length===1?'':'s')+' ('+totalNodes+' nodes)'});
+      setTimeout(onClose,1200);
+    }catch(err){setStatus({type:'error',msg:'Import failed: '+err.message});}
+  };
+
+  const handleDrop=e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);};
+
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
+      <div ref={ref} style={{background:'#242424',border:'1px solid #333333',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0}}>Mindmap Import / Export</h2>
+          <button onClick={onClose} style={{border:'none',background:'transparent',color:'#555',fontSize:22,cursor:'pointer',padding:'0 4px'}}
+            onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#555'}>×</button>
+        </div>
+
+        {/* Import section */}
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:16}}>📥</span> Import Mindmap
+          </div>
+          <div
+            onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop}
+            onClick={()=>fileRef.current?.click()}
+            style={{
+              border:dragOver?'2px solid #4a9eff':'2px dashed #3a3a3a',
+              borderRadius:10,padding:'24px 16px',textAlign:'center',cursor:'pointer',
+              background:dragOver?'rgba(74,158,255,0.06)':'#1a1a1a',
+              transition:'all 0.15s',
+            }}>
+            <div style={{fontSize:28,marginBottom:8}}>{dragOver?'📂':'🗺️'}</div>
+            <div style={{fontSize:14,color:'#6a7090',marginBottom:4}}>Drop a mindmap export here or click to browse</div>
+            <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>.json (TaskFlow mindmap format)</div>
+            <input ref={fileRef} type="file" accept=".json" style={{display:'none'}} onChange={e=>handleFile(e.target.files[0])}/>
+          </div>
+
+          {/* Import mode */}
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            {[{key:'merge',label:'Merge',desc:'Add projects alongside existing'},{key:'replace',label:'Replace',desc:'Clear all & replace mindmap'}].map(m=>(
+              <button key={m.key} onClick={()=>setImportMode(m.key)}
+                style={{
+                  flex:1,border:importMode===m.key?'1.5px solid #4a9eff':'1.5px solid #333333',
+                  borderRadius:8,padding:'8px 12px',cursor:'pointer',
+                  background:importMode===m.key?'rgba(74,158,255,0.08)':'#1a1a1a',
+                  textAlign:'left',transition:'all 0.15s',
+                }}>
+                <div style={{fontSize:13,fontWeight:600,color:importMode===m.key?'#4a9eff':'#6a7090'}}>{m.label}</div>
+                <div style={{fontSize:11,color:'#606060',marginTop:2}}>{m.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Export section */}
+        <div>
+          <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:16}}>📤</span> Export Mindmap
+            <span style={{fontSize:12,color:'#606060',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{projectCount} project{projectCount===1?'':'s'}, {nodeCount} nodes</span>
+          </div>
+          <button onClick={()=>exportMindmapJson(projects)}
+            style={{width:'100%',border:'1.5px solid #333333',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#1a1a1a',textAlign:'left',transition:'all 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#333333'}>
+            <div style={{fontSize:14,fontWeight:600,color:'#d0d4e0'}}>TaskFlow Mindmap JSON</div>
+            <div style={{fontSize:11,color:'#606060',marginTop:3}}>All projects, nodes, notes, positions & connections</div>
+          </button>
         </div>
 
         {/* Status message */}
@@ -418,20 +546,20 @@ function RecurrenceDropdown({task,onSelect,onClose}){
   };
 
   return(
-    <div ref={ref} style={{position:'absolute',bottom:'100%',right:0,zIndex:200,background:'#1e2230',border:'1px solid #2a2e3e',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:8,minWidth:220,marginBottom:6}}>
+    <div ref={ref} style={{position:'absolute',bottom:'100%',right:0,zIndex:200,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:8,minWidth:220,marginBottom:6}}>
       {!showCustom?(
         <>
           {RECURRENCE_PRESETS.map(p=>(
             <button key={p.key} onClick={()=>handlePreset(p.key)}
               style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'10px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-              onMouseEnter={e=>e.currentTarget.style.background='#282d3e'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               <span style={{fontSize:16}}>{p.icon}</span><span>{p.label}</span>
             </button>
           ))}
           {task.recurrence&&(
             <button onClick={()=>onSelect(null)}
               style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'10px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#555'}}
-              onMouseEnter={e=>e.currentTarget.style.background='#282d3e'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               <span style={{fontSize:16}}>✕</span><span>Remove recurrence</span>
             </button>
           )}
@@ -441,9 +569,9 @@ function RecurrenceDropdown({task,onSelect,onClose}){
           <div style={{padding:'8px 12px',color:'#888',fontSize:12}}>Every</div>
           <div style={{display:'flex',gap:6,padding:'4px 12px',marginBottom:8}}>
             <input type="number" min="1" value={customInterval} onChange={e=>setCustomInterval(Math.max(1,parseInt(e.target.value)||1))}
-              style={{width:50,border:'1px solid #2a2e3e',borderRadius:4,padding:'4px 6px',background:'#0d1117',color:'#d0d4e0',fontSize:12}}/>
+              style={{width:50,border:'1px solid #3a3a3a',borderRadius:4,padding:'4px 6px',background:'#1a1a1a',color:'#d0d4e0',fontSize:12}}/>
             <select value={customUnit} onChange={e=>setCustomUnit(e.target.value)}
-              style={{flex:1,border:'1px solid #2a2e3e',borderRadius:4,padding:'4px 6px',background:'#0d1117',color:'#d0d4e0',fontSize:12}}>
+              style={{flex:1,border:'1px solid #3a3a3a',borderRadius:4,padding:'4px 6px',background:'#1a1a1a',color:'#d0d4e0',fontSize:12}}>
               <option value="days">days</option>
               <option value="weeks">weeks</option>
               <option value="months">months</option>
@@ -452,11 +580,11 @@ function RecurrenceDropdown({task,onSelect,onClose}){
           <div style={{padding:'8px 12px',color:'#888',fontSize:12}}>Until (optional)</div>
           <div style={{padding:'4px 12px',marginBottom:8}}>
             <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-              style={{width:'100%',border:'1px solid #2a2e3e',borderRadius:4,padding:'4px 6px',background:'#0d1117',color:'#d0d4e0',fontSize:12}}/>
+              style={{width:'100%',border:'1px solid #3a3a3a',borderRadius:4,padding:'4px 6px',background:'#1a1a1a',color:'#d0d4e0',fontSize:12}}/>
           </div>
           <div style={{display:'flex',gap:6,padding:'8px 12px'}}>
             <button onClick={()=>setShowCustom(false)}
-              style={{flex:1,border:'1px solid #1e2438',borderRadius:4,padding:'6px',cursor:'pointer',background:'transparent',color:'#888',fontSize:11,fontFamily:"'JetBrains Mono',monospace"}}>Back</button>
+              style={{flex:1,border:'1px solid #333333',borderRadius:4,padding:'6px',cursor:'pointer',background:'transparent',color:'#888',fontSize:11,fontFamily:"'JetBrains Mono',monospace"}}>Back</button>
             <button onClick={handleCustom}
               style={{flex:1,border:'1px solid #4a9eff',borderRadius:4,padding:'6px',cursor:'pointer',background:'rgba(74,158,255,0.08)',color:'#4a9eff',fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:600}}>Set</button>
           </div>
@@ -474,15 +602,15 @@ function CatDropdown({categories,onSelect,onClose}){
     document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
   },[onClose]);
   return(
-    <div ref={ref} style={{position:'absolute',top:36,left:0,zIndex:200,background:'#1e2230',border:'1px solid #2a2e3e',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
+    <div ref={ref} style={{position:'absolute',top:36,left:0,zIndex:200,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
       {Object.entries(categories).map(([name,cfg])=>(
         <button key={name} onClick={()=>onSelect(name)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-          onMouseEnter={e=>e.currentTarget.style.background='#282d3e'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
           <span style={{width:16,height:16,borderRadius:4,background:cfg.bg,flexShrink:0}}/><span>{name}</span>
         </button>
       ))}
       <button onClick={()=>onSelect(null)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#555'}}
-        onMouseEnter={e=>e.currentTarget.style.background='#282d3e'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
         <span style={{width:16,height:16,borderRadius:4,border:'1px dashed #444',flexShrink:0}}/><span>None</span>
       </button>
     </div>
@@ -507,13 +635,13 @@ function StatusDropdown({onSelect,onClose}){
     {key:'s',label:'Skipped'},
   ];
   return(
-    <div ref={ref} style={{position:'absolute',top:40,left:0,zIndex:200,background:'#1e2230',border:'1px solid #2a2e3e',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
+    <div ref={ref} style={{position:'absolute',top:40,left:0,zIndex:200,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
       {opts.map(o=>{
         const sc=STATUS_CONFIG[o.key]||STATUS_CONFIG[''];
         return(
           <button key={o.key} onClick={()=>onSelect(o.key)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'8px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-            onMouseEnter={e=>e.currentTarget.style.background='#282d3e'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-            <span style={{width:24,height:24,borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,background:o.key?sc.bg:'#151a28',color:o.key?sc.color:'#2a3050',border:o.key?'none':'2px solid #1e2438'}}>{o.key||'·'}</span>
+            onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <span style={{width:24,height:24,borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,background:o.key?sc.bg:'#2a2a2a',color:o.key?sc.color:'#4a4a4a',border:o.key?'none':'2px solid #333333'}}>{o.key||'·'}</span>
             <span>{o.label}</span>
           </button>
         );
@@ -523,7 +651,7 @@ function StatusDropdown({onSelect,onClose}){
 }
 
 /* ── Task Row ── */
-function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragStart,onDragOver,onDrop,showOrder,categories}){
+function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragStart,onDragOver,onDrop,showOrder,categories,depth=0,hasChildren=false,onToggleCollapse,onAddSubtask}){
   const[catOpen,setCatOpen]=useState(false);
   const[statusOpen,setStatusOpen]=useState(false);
   const[editing,setEditing]=useState(false);
@@ -557,53 +685,63 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
   return(
     <div draggable={!editing}
       onDragStart={e=>onDragStart(e,idx)} onDragOver={e=>{e.preventDefault();onDragOver(e,idx);}} onDrop={e=>onDrop(e,idx)}
-      onClick={()=>onSelect(task.id)} onDoubleClick={()=>{setEditing(true);setEditVal(task.title);}}
+      onClick={()=>onSelect(task.id)} onDoubleClick={()=>onChangeStatus(task.id,'x')}
       style={{
-        display:'flex',alignItems:'center',gap:12,padding:'11px 16px',
-        background:isSelected?'#151d35':(task.status?s.rowBg:'#0d1117'),
-        borderRadius:10,cursor:'grab',userSelect:'none',
-        border:isSelected?'1.5px solid #4a9eff':'1.5px solid #1e2438',
-        transition:'all 0.15s ease',position:'relative',minHeight:52,
+        display:'flex',alignItems:'center',gap:10,padding:'4px 12px',paddingLeft:12+depth*28,
+        background:isSelected?'#2a2f3a':(task.status?s.rowBg:'#1a1a1a'),
+        borderRadius:8,cursor:'grab',userSelect:'none',
+        border:isSelected?'1.5px solid #4a9eff':'1.5px solid #333333',
+        transition:'all 0.15s ease',position:'relative',
         opacity:task.status==='s'?0.45:1,
-        marginBottom:4,
+        marginBottom:3,
       }}>
 
+      {/* Left accent bar — outline: click to add subtask; filled: has children, click to collapse/expand */}
+      {(()=>{
+        const barColor=hasChildren?(task.collapsed?'#4a9eff':'#6ecf6e'):(s.color||'#555');
+        return(
+          <div onClick={e=>{e.stopPropagation();if(hasChildren)onToggleCollapse(task.id);else if(depth<3)onAddSubtask(task.id);}}
+            style={{position:'absolute',left:0,top:0,bottom:0,width:5,
+              background:hasChildren?barColor:'transparent',
+              borderLeft:hasChildren?'none':('2px solid '+barColor+'44'),
+              cursor:hasChildren||(depth<3)?'pointer':'default',
+              transition:'all 0.2s',borderRadius:'8px 0 0 8px',
+            }}
+            onMouseEnter={e=>{if(hasChildren)e.currentTarget.style.opacity='0.7';else if(depth<3)e.currentTarget.style.borderLeftColor=barColor+'88';}}
+            onMouseLeave={e=>{if(hasChildren)e.currentTarget.style.opacity='1';else if(depth<3)e.currentTarget.style.borderLeftColor=barColor+'44';}}
+            title={hasChildren?(task.collapsed?'Expand subtasks':'Collapse subtasks'):(depth<3?'Add subtask':'')}/>
+        );
+      })()}
+
       {/* Order number */}
-      {showOrder&&<span style={{width:24,textAlign:'right',fontSize:14,fontFamily:"'JetBrains Mono',monospace",color:'#3a4060',fontWeight:600,flexShrink:0}}>{idx}</span>}
+      {showOrder&&<span style={{width:24,textAlign:'right',fontSize:14,fontFamily:"'JetBrains Mono',monospace",color:'#606060',fontWeight:600,flexShrink:0}}>{idx}</span>}
 
       {/* Status badge - click for dropdown, double-click for instant x */}
       <div style={{position:'relative',flexShrink:0}}>
         <span onClick={handleStatusClick} style={{
-          width:36,height:36,borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:20,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",cursor:'pointer',
-          background:task.status?s.bg:'#151a28',color:task.status?s.color:'#2a3050',
-          border:task.status?'none':'2px solid #1e2438',
+          width:30,height:30,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:17,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",cursor:'pointer',
+          background:task.status?s.bg:'#2a2a2a',color:task.status?s.color:'#4a4a4a',
+          border:task.status?'none':'2px solid #333333',
           transition:'all 0.15s',
         }}>{task.status||'·'}</span>
         {statusOpen&&<StatusDropdown onSelect={st=>{onChangeStatus(task.id,st);setStatusOpen(false);}} onClose={()=>setStatusOpen(false)}/>}
       </div>
 
-      {/* Title + timestamps */}
-      <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}>
+      {/* Title */}
+      <div style={{flex:1,minWidth:0}}>
         {editing?(
           <input ref={inp} value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={donEdit}
             onKeyDown={e=>{if(e.key==='Enter')donEdit();if(e.key==='Escape')setEditing(false);}}
-            style={{border:'none',outline:'none',background:'#0d1117',padding:'4px 8px',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:17,borderRadius:4,boxShadow:'0 0 0 2px #4a9eff',color:'#e0e0e0',width:'100%'}}/>
+            style={{border:'none',outline:'none',background:'#1a1a1a',padding:'4px 8px',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,borderRadius:4,boxShadow:'0 0 0 2px #4a9eff',color:'#e0e0e0',width:'100%'}}/>
         ):(
-          <span style={{
-            fontSize:17,fontFamily:"'IBM Plex Sans',sans-serif",
+          <span onClick={e=>{e.stopPropagation();setEditing(true);setEditVal(task.title);}} style={{
+            fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",
             color:task.status==='x'?'#5a8a5a':(task.status==='s'?'#555':'#d0d4e0'),
             textDecoration:task.status==='x'?'line-through':'none',
             overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.35,
-            fontWeight:task.status==='u'?600:400,
+            fontWeight:task.status==='u'?600:400,cursor:'text',display:'inline',
           }}>{task.title}</span>
-        )}
-        {/* Completed: show both timestamps */}
-        {task.status==='x'&&(
-          <div style={{display:'flex',gap:14,fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:'#3a5a3a'}}>
-            <span>+ {fmt(task.dateAdded)}</span>
-            {task.dateCompleted&&<span>✓ {fmt(task.dateCompleted)}</span>}
-          </div>
         )}
       </div>
 
@@ -628,7 +766,7 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         {task.dueDate?(
           <>
             <span style={{fontSize:12,fontFamily:"'JetBrains Mono',monospace",padding:'3px 8px',borderRadius:5,
-              background:overdue?'#4a1a1a':(soon?'#3a3520':'#1a1e2e'),
+              background:overdue?'#4a1a1a':(soon?'#3a3520':'#2e2e2e'),
               color:overdue?'#ff6b6b':(soon?'#f0c040':'#5a6080'),
             }}>{new Date(task.dueDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
             <button onClick={e=>{e.stopPropagation();onUpdate({...task,dueDate:null});}}
@@ -638,15 +776,23 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         ):(
           <>
             <button onClick={e=>{e.stopPropagation();setDuePicker(!duePicker);}}
-              style={{border:'1px dashed #2a2e3e',borderRadius:5,padding:'3px 8px',fontSize:12,color:'#3a3e50',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}} title="Add due date">📅</button>
-            {duePicker&&<input type="date" autoFocus style={{position:'absolute',top:32,right:0,zIndex:200,background:'#1e2230',border:'1px solid #333',borderRadius:6,padding:8,fontSize:13,color:'#ccc',colorScheme:'dark'}}
+              style={{border:'1px dashed #3a3a3a',borderRadius:5,padding:'3px 8px',fontSize:12,color:'#555555',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}} title="Add due date">📅</button>
+            {duePicker&&<input type="date" autoFocus style={{position:'absolute',top:32,right:0,zIndex:200,background:'#2c2c2c',border:'1px solid #333',borderRadius:6,padding:8,fontSize:13,color:'#ccc',colorScheme:'dark'}}
               onChange={e=>{if(e.target.value)onUpdate({...task,dueDate:e.target.value});setDuePicker(false);}} onBlur={()=>setDuePicker(false)}/>}
           </>
         )}
       </div>
 
-      {/* Timestamp for non-completed */}
-      {task.status!=='x'&&<span style={{fontSize:12,color:'#2a3050',fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:110,textAlign:'right'}}>{fmt(task.dateAdded)}</span>}
+      {/* Timestamps */}
+      {task.status==='x'?(
+        <div style={{display:'flex',gap:10,fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:'#3a5a3a',flexShrink:0,textAlign:'right'}}>
+          <span>+ {fmt(task.dateAdded)}</span>
+          {task.dateCompleted&&<span>✓ {fmt(task.dateCompleted)}</span>}
+        </div>
+      ):(
+        <span style={{fontSize:11,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:100,textAlign:'right'}}>{fmt(task.dateAdded)}</span>
+      )}
+
     </div>
   );
 }
@@ -662,20 +808,20 @@ function CategoryManager({categories,onUpdate}){
       <p style={{fontSize:14,color:'#5a6080',margin:0}}>Add, remove, or change colors for your task categories.</p>
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
         {Object.entries(categories).map(([name,cfg])=>(
-          <div key={name} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:'#141822',borderRadius:8,border:'1px solid #1a1e2e'}}>
+          <div key={name} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:'#242424',borderRadius:8,border:'1px solid #2e2e2e'}}>
             <input type="color" value={cfg.bg} onChange={e=>onUpdate({...categories,[name]:{...cfg,bg:e.target.value}})} style={{width:32,height:32,border:'none',borderRadius:5,padding:0}}/>
             <span style={{flex:1,fontSize:16,color:'#d0d4e0',fontWeight:500}}>{name}</span>
             <span style={{fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:cfg.text||'#222',background:cfg.bg,padding:'2px 8px',borderRadius:4,fontWeight:600}}>{name}</span>
             <button onClick={()=>{const n={...categories};delete n[name];onUpdate(n);}}
-              style={{border:'none',background:'transparent',cursor:'pointer',color:'#3a3e50',fontSize:18,padding:'0 4px'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='#3a3e50'}>×</button>
+              style={{border:'none',background:'transparent',cursor:'pointer',color:'#555555',fontSize:18,padding:'0 4px'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='#555555'}>×</button>
           </div>
         ))}
       </div>
       <div style={{display:'flex',gap:10,alignItems:'center',marginTop:8}}>
         <input type="color" value={nc} onChange={e=>setNc(e.target.value)} style={{width:32,height:32,border:'none',borderRadius:5,padding:0}}/>
         <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="New category name..." onKeyDown={e=>{if(e.key==='Enter')add();}}
-          style={{flex:1,border:'1px solid #2a2e3e',borderRadius:6,padding:'8px 12px',fontSize:14,background:'#141822',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+          style={{flex:1,border:'1px solid #3a3a3a',borderRadius:6,padding:'8px 12px',fontSize:14,background:'#242424',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
         <button onClick={add} style={{border:'none',borderRadius:6,padding:'8px 18px',fontSize:14,background:'#4a9eff',color:'#fff',cursor:'pointer',fontWeight:600}}>Add</button>
       </div>
     </div>
@@ -765,18 +911,32 @@ function computeTreeLayout(nodes, rootId, options = {}) {
   return positioned;
 }
 
+function getVisualNodeHeight(node, posHeight) {
+  const titleRowH = 38;
+  const nh = posHeight || 54;
+  const hasNotes = node && node.notes && node.notes.trim();
+  const notesExpanded = node && node.notesExpanded;
+  const notesAreaH = notesExpanded && hasNotes ? Math.max(0, nh - titleRowH) : 0;
+  return titleRowH + notesAreaH;
+}
+
 function computeEdges(positionedNodes, nodes) {
   const posMap = new Map();
+  const nodeMap = new Map();
   positionedNodes.forEach(p => posMap.set(p.id, p));
+  nodes.forEach(n => nodeMap.set(n.id, n));
   const edges = [];
   nodes.forEach(n => {
     if (n.parentId) {
       const pp = posMap.get(n.parentId), cp = posMap.get(n.id);
+      const parentNode = nodeMap.get(n.parentId);
       if (pp && cp) {
+        const parentVisH = getVisualNodeHeight(parentNode, pp.height);
         edges.push({
           fromId: n.parentId, toId: n.id,
-          fromX: Math.round(pp.x + pp.width / 2), fromY: Math.round(pp.y + pp.height),
-          toX: Math.round(cp.x + cp.width / 2), toY: Math.round(cp.y)
+          fromX: Math.round(pp.x + pp.width / 2), fromY: Math.round(pp.y + parentVisH),
+          toX: Math.round(cp.x + cp.width / 2), toY: Math.round(cp.y),
+          parentColor: parentNode ? (parentNode.color || '#4a9eff') : '#4a9eff'
         });
       }
     }
@@ -785,16 +945,31 @@ function computeEdges(positionedNodes, nodes) {
 }
 
 /* ══════════════════════════════════════════
+   ── Mindmap: Notes Popup Component ──
+   ══════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════
    ── Mindmap: Visual Components ──
    ══════════════════════════════════════════ */
 
-function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild, onToggleCollapse, onStartRename, onToggleChecked, onAddToTasks, tasks }) {
+function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild, onToggleCollapse, onStartRename, onToggleChecked, onAddToTasks, onStartDragNode, onStartResizeNode, onToggleNodeNotes, onSetNotes, tasks }) {
   const [hover, setHover] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesVal, setNotesVal] = useState(node.notes || '');
+  const notesInputRef = useRef(null);
+  useEffect(() => { setNotesVal(node.notes || ''); }, [node.notes]);
+  useEffect(() => { if (editingNotes && notesInputRef.current) notesInputRef.current.focus(); }, [editingNotes]);
+  const finishNotesEdit = () => { setEditingNotes(false); onSetNotes(notesVal); if(!notesVal.trim()&&node.notesExpanded){onToggleNodeNotes(true);} };
   const hasChildren = node.children && node.children.length > 0;
   const nw = position.width || 200, nh = position.height || 54;
-  const foHeight = nh + 32;
+  const titleRowH = 38;
+  const hasNotes = node.notes && node.notes.trim();
+  const notesExpanded = node.notesExpanded || editingNotes;
+  const notesAreaH = notesExpanded ? Math.max(0, nh - titleRowH) : 0;
+  const totalNodeH = titleRowH + notesAreaH;
+  const foHeight = totalNodeH + 32;
   const isChecked = node.checked;
-  // Find linked task status
+  const nodeColor = node.color || '#4a9eff';
   const linkedTask = node.linkedTaskId ? tasks.find(t => t.id === node.linkedTaskId) : null;
   const linkedStatus = linkedTask ? linkedTask.status : null;
   const statusCfg = linkedStatus && STATUS_CONFIG[linkedStatus] ? STATUS_CONFIG[linkedStatus] : null;
@@ -802,60 +977,100 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
   return (
     <g onClick={e=>{e.stopPropagation();onSelect();}} onDoubleClick={e=>{e.stopPropagation();onStartRename();}}
        onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}>
-      <foreignObject x={position.x} y={position.y} width={nw} height={foHeight} style={{overflow:'visible'}}>
+      <foreignObject x={position.x} y={position.y} width={nw+4} height={foHeight+4} style={{overflow:'visible'}}>
         <div style={{position:'relative',width:nw,height:foHeight}}>
-          <div style={{
-            width:nw,height:nh,background:isChecked?'#0d1117':'#141822',
-            border:'2px solid '+(isSelected?'#4a9eff':isChecked?'#2a4a2a':'#1e2438'),
-            borderRadius:6,display:'flex',alignItems:'center',gap:8,
-            paddingLeft:8,paddingRight:hasChildren?32:8,
-            position:'relative',cursor:'pointer',
+          <div onMouseDown={e=>onStartDragNode(e, node.id)} style={{
+            width:nw,height:totalNodeH,background:isChecked?'#1a1a1a':'#242424',
+            border:'2px solid '+(isSelected?'#4a9eff':isChecked?'#2a4a2a':'#333333'),
+            borderRadius:6,
+            position:'relative',cursor:'grab',
             boxShadow:isSelected?'0 0 12px rgba(74,158,255,0.3)':'none',
             opacity:isChecked?0.55:1,
-            transition:'all 0.2s',fontFamily:"'IBM Plex Sans',sans-serif",
-            fontSize:isRoot?15:13,fontWeight:isRoot?600:500,color:isChecked?'#555':'#d0d4e0',overflow:'hidden'
+            transition:'border-color 0.2s, box-shadow 0.2s',fontFamily:"'IBM Plex Sans',sans-serif",
+            fontSize:isRoot?15:13,fontWeight:isRoot?600:500,color:isChecked?'#555':'#d0d4e0',
+            overflow:'hidden',userSelect:'none',display:'flex',flexDirection:'column'
           }}>
-            <div style={{position:'absolute',left:0,top:0,bottom:0,width:4,background:isChecked?'#6ecf6e':(node.color||'#4a9eff'),borderRadius:'4px 0 0 4px'}}/>
-            {/* Checkbox */}
-            <div onClick={e=>{e.stopPropagation();onToggleChecked();}}
-              style={{width:20,height:20,borderRadius:4,marginLeft:4,flexShrink:0,
-                border:isChecked?'2px solid #6ecf6e':'2px solid #2a3050',
-                background:isChecked?'#2a4a2a':'transparent',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                cursor:'pointer',transition:'all 0.15s',fontSize:12,fontWeight:700,
-                color:'#6ecf6e'}}>
-              {isChecked?'✓':''}
+            {/* Color accent bar */}
+            <div style={{position:'absolute',left:0,top:0,bottom:0,width:4,background:isChecked?'#6ecf6e':nodeColor,borderRadius:'4px 0 0 4px'}}/>
+            {/* Top row: checkbox + title — fixed height */}
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'0 8px',paddingLeft:12,paddingRight:hasChildren?32:8,height:titleRowH,flexShrink:0}}>
+              <div onClick={e=>{e.stopPropagation();onToggleChecked();}}
+                style={{width:18,height:18,borderRadius:4,flexShrink:0,
+                  border:isChecked?'2px solid #6ecf6e':'2px solid #4a4a4a',
+                  background:isChecked?'#2a4a2a':'transparent',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  cursor:'pointer',transition:'all 0.15s',fontSize:11,fontWeight:700,
+                  color:'#6ecf6e'}}>
+                {isChecked?'✓':''}
+              </div>
+              <div style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                textDecoration:isChecked?'line-through':'none',lineHeight:'1.3'}}>
+                {node.title}
+              </div>
+              {linkedStatus && linkedStatus !== '' && statusCfg && (
+                <span style={{fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",
+                  background:statusCfg.bg,color:statusCfg.color,borderRadius:3,padding:'1px 5px',flexShrink:0}}>
+                  {linkedStatus}
+                </span>
+              )}
+              <div onClick={e=>{e.stopPropagation();if(!hasNotes&&!notesExpanded){onToggleNodeNotes(false);setEditingNotes(true);}else if(notesExpanded&&!hasNotes){setEditingNotes(false);onToggleNodeNotes(true);}else{onToggleNodeNotes(false);}}}
+                style={{cursor:'pointer',flexShrink:0,transition:'all 0.15s',display:'flex',alignItems:'center'}}
+                title={notesExpanded?'Hide notes':(hasNotes?'Show notes':'Add notes')}>
+                {(()=>{const iconColor=(hasNotes||notesExpanded)?nodeColor:'#666';return(
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="1" width="12" height="14" rx="1.5" stroke={iconColor} strokeWidth="1.5"/>
+                  <line x1="5" y1="5" x2="11" y2="5" stroke={iconColor} strokeWidth="1.2" strokeLinecap="round"/>
+                  <line x1="5" y1="8" x2="11" y2="8" stroke={iconColor} strokeWidth="1.2" strokeLinecap="round"/>
+                  <line x1="5" y1="11" x2="9" y2="11" stroke={iconColor} strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>);})()}
+              </div>
             </div>
-            {/* Title */}
-            <div style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-              textDecoration:isChecked?'line-through':'none'}}>
-              {node.title}
-            </div>
-            {/* Status badge from linked task */}
-            {linkedStatus && linkedStatus !== '' && statusCfg && (
-              <span style={{fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",
-                background:statusCfg.bg,color:statusCfg.color,borderRadius:3,padding:'1px 5px',flexShrink:0}}>
-                {linkedStatus}
-              </span>
+            {/* Notes body — fills remaining space when expanded */}
+            {notesExpanded && (
+              editingNotes ? (
+                <div style={{flex:1,borderTop:'1px solid #333333',marginLeft:12,marginRight:8,paddingTop:4,minHeight:0,display:'flex',flexDirection:'column'}}
+                  onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+                  <textarea ref={notesInputRef} value={notesVal} onChange={e=>setNotesVal(e.target.value)}
+                    onBlur={finishNotesEdit}
+                    onKeyDown={e=>{if(e.key==='Escape'){setEditingNotes(false);setNotesVal(node.notes||'');if(!node.notes?.trim()&&node.notesExpanded)onToggleNodeNotes(true);}}}
+                    style={{flex:1,border:'none',outline:'none',background:'transparent',color:'#d0d4e0',
+                      fontSize:11,lineHeight:'1.4',fontFamily:"'IBM Plex Sans',sans-serif",
+                      padding:'2px 0 6px',resize:'none',minHeight:0,width:'100%',cursor:'text'}}/>
+                </div>
+              ) : (
+                <div onDoubleClick={e=>{e.stopPropagation();setEditingNotes(true);}} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
+                  style={{flex:1,padding:'0 12px 6px',fontSize:11,color:hasNotes?'#8a9bb8':'#555',lineHeight:'1.4',
+                    fontFamily:"'IBM Plex Sans',sans-serif",whiteSpace:'pre-wrap',wordWrap:'break-word',
+                    borderTop:'1px solid #333333',marginLeft:12,marginRight:8,paddingTop:4,
+                    overflow:'auto',minHeight:0,cursor:'text'}}>
+                  {hasNotes ? node.notes : 'Double-click to add notes...'}
+                </div>
+              )
             )}
-            {/* Notes indicator */}
-            {node.notes && node.notes.trim() && (
-              <span style={{fontSize:10,color:'#3a4060',flexShrink:0}} title={node.notes}>📝</span>
-            )}
-            {/* Collapse toggle */}
+            {/* Collapse toggle for children */}
             {hasChildren&&<div onClick={e=>{e.stopPropagation();onToggleCollapse();}}
-              style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%) rotateZ('+(node.collapsed?'-90deg':'0deg')+')',
+              style={{position:'absolute',right:8,top:titleRowH/2,transform:'translateY(-50%) rotateZ('+(node.collapsed?'0deg':'90deg')+')',
                 width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',
-                cursor:'pointer',color:'#3a4060',transition:'transform 0.2s',fontSize:10}}>▶</div>}
+                cursor:'pointer',color:'#606060',transition:'transform 0.2s',fontSize:10}}>▶</div>}
+            {/* Resize handle — inside the node border, bottom-right corner */}
+            <div onMouseDown={e=>{e.stopPropagation();onStartResizeNode(e, node.id);}}
+              style={{position:'absolute',bottom:2,right:2,width:12,height:12,
+                cursor:'nwse-resize',opacity:hover?1:0.5,transition:'opacity 0.15s',pointerEvents:'auto',
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <svg width="8" height="8" viewBox="0 0 8 8">
+                <line x1="7" y1="1" x2="1" y2="7" stroke={nodeColor} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="7" y1="4" x2="4" y2="7" stroke={nodeColor} strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
           </div>
           {/* Hover buttons below node */}
           <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',
             display:'flex',gap:4,opacity:hover?1:0,pointerEvents:hover?'auto':'none',transition:'opacity 0.2s'}}>
             <div onClick={e=>{e.stopPropagation();onAddChild();}}
-              style={{width:24,height:24,background:'#4a9eff',borderRadius:'50%',
+              style={{width:24,height:24,background:nodeColor,borderRadius:'50%',
                 display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
-                color:'#0d1117',fontSize:14,fontWeight:'bold'}}>+</div>
-            {!node.linkedTaskId && !isRoot && (
+                color:'#1a1a1a',fontSize:14,fontWeight:'bold'}}>+</div>
+            {!node.linkedTaskId && (
               <div onClick={e=>{e.stopPropagation();onAddToTasks();}} title="Add to Tasks"
                 style={{height:24,padding:'0 8px',background:'#2a4a2a',borderRadius:12,
                   display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
@@ -872,7 +1087,8 @@ function MindmapEdge({ edge }) {
   const dy = edge.toY - edge.fromY;
   const off = Math.max(dy * 0.4, 30);
   const d = `M ${edge.fromX} ${edge.fromY} C ${edge.fromX} ${edge.fromY+off}, ${edge.toX} ${edge.toY-off}, ${edge.toX} ${edge.toY}`;
-  return <path d={d} stroke="#1e2438" strokeWidth="2" fill="none" strokeLinecap="round" pointerEvents="none"/>;
+  const stroke = edge.parentColor || '#333333';
+  return <path d={d} stroke={stroke} strokeWidth="2" fill="none" strokeLinecap="round" pointerEvents="none"/>;
 }
 
 function MindmapNodeEditor({ node, position, onSave, onCancel }) {
@@ -882,7 +1098,7 @@ function MindmapNodeEditor({ node, position, onSave, onCancel }) {
   const nw = position.width || 200, nh = position.height || 54;
   return (
     <foreignObject x={position.x} y={position.y} width={nw} height={nh} style={{overflow:'visible'}}>
-      <div style={{width:nw,height:nh,background:'#141822',border:'2px solid #4a9eff',borderRadius:6,
+      <div style={{width:nw,height:nh,background:'#242424',border:'2px solid #4a9eff',borderRadius:6,
         display:'flex',alignItems:'center',padding:'0 16px',boxShadow:'0 0 12px rgba(74,158,255,0.3)'}}>
         <input ref={ref} type="text" value={val} onChange={e=>setVal(e.target.value)}
           onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSave(val);}else if(e.key==='Escape'){e.preventDefault();onCancel();}}}
@@ -913,7 +1129,7 @@ function useMindmap() {
       saveLS(MM_DATA_PREFIX + pid, old.map(n => ({ notes:'', checked:false, linkedTaskId:null, ...n })));
     } else {
       const rid = uuid();
-      saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:'My Project', color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null }]);
+      saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:'My Project', color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }]);
     }
     return def;
   });
@@ -925,9 +1141,10 @@ function useMindmap() {
     const p = loadLS(MM_PROJECTS_KEY, []);
     const pid = p.length > 0 ? p[0].id : null;
     if (!pid) return [];
-    return loadLS(MM_DATA_PREFIX + pid, []).map(n => ({ notes:'', checked:false, linkedTaskId:null, ...n }));
+    return loadLS(MM_DATA_PREFIX + pid, []).map(n => ({ notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null, ...n }));
   });
   const [selectedId, setSelectedId] = useState(null);
+  const [defaultNodeColor, setDefaultNodeColor] = useState('#4a9eff');
 
   const rootId = useMemo(() => nodes.find(n => !n.parentId)?.id || null, [nodes]);
   const persistProjects = useCallback(pp => { setProjects(pp); saveLS(MM_PROJECTS_KEY, pp); }, []);
@@ -935,7 +1152,7 @@ function useMindmap() {
 
   const switchProject = useCallback(pid => {
     setActiveProjectId(pid);
-    setNodes(loadLS(MM_DATA_PREFIX + pid, []).map(n => ({ notes:'', checked:false, linkedTaskId:null, ...n })));
+    setNodes(loadLS(MM_DATA_PREFIX + pid, []).map(n => ({ notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null, ...n })));
     setSelectedId(null);
   }, []);
 
@@ -943,7 +1160,7 @@ function useMindmap() {
     const pid = uuid(), rid = uuid();
     const np = [...projects, { id:pid, name, color:'#4a9eff' }];
     persistProjects(np);
-    saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:name, color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null }]);
+    saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:name, color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }]);
     switchProject(pid);
     return pid;
   }, [projects, persistProjects, switchProject]);
@@ -972,12 +1189,14 @@ function useMindmap() {
 
   const addChild = useCallback((parentId, title = 'New Node') => {
     const newId = uuid();
-    const nn = [...nodes, { id:newId, parentId, title, color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null }];
+    const parentNode = nodes.find(n => n.id === parentId);
+    const childColor = parentNode ? (parentNode.color || defaultNodeColor) : defaultNodeColor;
+    const nn = [...nodes, { id:newId, parentId, title, color:childColor, collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }];
     const p = nn.find(n => n.id === parentId);
     if (p) p.children = [...(p.children || []), newId];
     persistNodes(nn);
     return newId;
-  }, [nodes, persistNodes]);
+  }, [nodes, defaultNodeColor, persistNodes]);
 
   const deleteNode = useCallback(id => {
     if (id === rootId) return [];
@@ -992,9 +1211,41 @@ function useMindmap() {
 
   const renameNode = useCallback((id, t) => persistNodes(nodes.map(n => n.id === id ? { ...n, title: t } : n)), [nodes, persistNodes]);
   const setNodeColor = useCallback((id, c) => persistNodes(nodes.map(n => n.id === id ? { ...n, color: c } : n)), [nodes, persistNodes]);
-  const toggleCollapse = useCallback(id => persistNodes(nodes.map(n => n.id === id ? { ...n, collapsed: !n.collapsed } : n)), [nodes, persistNodes]);
+  const toggleCollapse = useCallback((id, positionedNodes) => {
+    const nd = nodes.find(n => n.id === id);
+    if (!nd) return;
+    const descendants = findDescendants(id);
+    const posMap = new Map();
+    if (positionedNodes) positionedNodes.forEach(p => posMap.set(p.id, p));
+    const parentPos = posMap.get(id);
+
+    if (!nd.collapsed && parentPos && descendants.length > 0) {
+      // Collapsing: store each descendant's position relative to parent, clear custom positions
+      persistNodes(nodes.map(n => {
+        if (n.id === id) return { ...n, collapsed: true, collapseX: parentPos.x, collapseY: parentPos.y };
+        if (descendants.includes(n.id)) {
+          const dp = posMap.get(n.id);
+          if (dp) return { ...n, collapseRelX: dp.x - parentPos.x, collapseRelY: dp.y - parentPos.y, customX: null, customY: null };
+        }
+        return n;
+      }));
+    } else if (nd.collapsed && parentPos && descendants.length > 0) {
+      // Expanding: restore positions relative to parent's current position
+      persistNodes(nodes.map(n => {
+        if (n.id === id) return { ...n, collapsed: false };
+        if (descendants.includes(n.id) && n.collapseRelX !== undefined && n.collapseRelX !== null) {
+          return { ...n, customX: parentPos.x + n.collapseRelX, customY: parentPos.y + n.collapseRelY, collapseRelX: null, collapseRelY: null };
+        }
+        return n;
+      }));
+    } else {
+      // Simple toggle (no positioned nodes available or no descendants)
+      persistNodes(nodes.map(n => n.id === id ? { ...n, collapsed: !n.collapsed } : n));
+    }
+  }, [nodes, findDescendants, persistNodes]);
   const setNodeNotes = useCallback((id, notes) => persistNodes(nodes.map(n => n.id === id ? { ...n, notes } : n)), [nodes, persistNodes]);
   const toggleNodeChecked = useCallback(id => persistNodes(nodes.map(n => n.id === id ? { ...n, checked: !n.checked } : n)), [nodes, persistNodes]);
+  const toggleNodeNotesExpanded = useCallback(id => persistNodes(nodes.map(n => n.id === id ? { ...n, notesExpanded: !n.notesExpanded } : n)), [nodes, persistNodes]);
   const setNodeLinkedTask = useCallback((id, taskId) => persistNodes(nodes.map(n => n.id === id ? { ...n, linkedTaskId: taskId } : n)), [nodes, persistNodes]);
 
   const syncNodeFromTask = useCallback((taskId, newStatus) => {
@@ -1019,11 +1270,20 @@ function useMindmap() {
     persistNodes(nn);
   }, [nodes, rootId, findDescendants, persistNodes]);
 
+  const setNodePosition = useCallback((id, x, y) => {
+    persistNodes(nodes.map(n => n.id === id ? { ...n, customX: x, customY: y } : n));
+  }, [nodes, persistNodes]);
+
+  const setNodeSize = useCallback((id, w, h) => {
+    persistNodes(nodes.map(n => n.id === id ? { ...n, customWidth: w, customHeight: h } : n));
+  }, [nodes, persistNodes]);
+
   return {
-    nodes, rootId, selectedId, setSelectedId,
-    addChild, deleteNode, renameNode, setNodeColor, toggleCollapse, moveNode,
-    setNodeNotes, toggleNodeChecked, setNodeLinkedTask, syncNodeFromTask,
+    nodes, rootId, selectedId, setSelectedId, persistNodes,
+    addChild, deleteNode, renameNode, setNodeColor, toggleCollapse, moveNode, setNodePosition, setNodeSize,
+    setNodeNotes, toggleNodeChecked, toggleNodeNotesExpanded, setNodeLinkedTask, syncNodeFromTask, findDescendants,
     projects, activeProjectId, switchProject, addProject, renameProject, deleteProject,
+    defaultNodeColor, setDefaultNodeColor,
   };
 }
 
@@ -1047,7 +1307,7 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
           cursor:'pointer',
           background:isSelected?'rgba(74,158,255,0.12)':'transparent',
           borderLeft:isSelected?'2px solid #4a9eff':'2px solid transparent',
-          transition:'all 0.12s',fontSize:12,fontFamily:"'IBM Plex Sans',sans-serif",
+          transition:'all 0.12s',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",
           color:isSelected?'#d0d4e0':node.checked?'#444':'#6a7090',
         }}
         onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}
@@ -1055,17 +1315,17 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
         {hasChildren?(
           <span onClick={e=>{e.stopPropagation();onToggleExpand(nodeId);}}
             style={{width:14,height:14,display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:7,color:'#3a4060',cursor:'pointer',transition:'transform 0.15s',flexShrink:0,
+              fontSize:9,color:'#606060',cursor:'pointer',transition:'transform 0.15s',flexShrink:0,
               transform:isExpanded?'rotate(90deg)':'rotate(0deg)'}}>▶</span>
         ):(<span style={{width:14,height:14,flexShrink:0}}/>)}
         {node.checked ? (
-          <span style={{fontSize:10,color:'#6ecf6e',flexShrink:0,fontWeight:700}}>✓</span>
+          <span style={{fontSize:12,color:'#6ecf6e',flexShrink:0,fontWeight:700}}>✓</span>
         ) : (
           <span style={{width:7,height:7,borderRadius:'50%',background:node.color||'#4a9eff',flexShrink:0}}/>
         )}
         <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
           fontWeight:depth===0?600:400,textDecoration:node.checked?'line-through':'none'}}>{node.title}</span>
-        {hasChildren&&<span style={{fontSize:10,color:'#2a3050',fontFamily:"'JetBrains Mono',monospace"}}>{node.children.length}</span>}
+        {hasChildren&&<span style={{fontSize:12,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace"}}>{node.children.length}</span>}
       </div>
       {hasChildren && isExpanded && node.children.map(childId => (
         <MindmapTreeItem key={childId} nodeId={childId} nodes={nodes} depth={depth+1}
@@ -1082,11 +1342,12 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
 const MINDMAP_COLORS=['#4a9eff','#6ecf6e','#f0c040','#ff6b6b','#b080e0','#e08050','#50e0c0','#ff80b0'];
 
 function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
-  const { nodes, rootId, selectedId, setSelectedId, addChild, deleteNode, renameNode, setNodeColor,
-    toggleCollapse, setNodeNotes, toggleNodeChecked, setNodeLinkedTask, syncNodeFromTask,
+  const { nodes, rootId, selectedId, setSelectedId, persistNodes, addChild, deleteNode, renameNode, setNodeColor,
+    toggleCollapse, setNodeNotes, toggleNodeChecked, toggleNodeNotesExpanded, setNodeLinkedTask, syncNodeFromTask, findDescendants, setNodePosition, setNodeSize,
     projects, activeProjectId, switchProject, addProject, renameProject, deleteProject } = mm;
 
   const [vt, setVt] = useState({ x: 0, y: 0, scale: 1 });
+  const [toast, setToast] = useState(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [editingId, setEditingId] = useState(null);
@@ -1094,11 +1355,30 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   const canvasRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
   const [notesNodeId, setNotesNodeId] = useState(null);
+  // Drag state
+  const dragStateRef = useRef({ isDragging: false, nodeId: null, startX: 0, startY: 0, nodeX: 0, nodeY: 0 });
+  const resizeStateRef = useRef({ isResizing: false, nodeId: null, startX: 0, startY: 0, nodeW: 0, nodeH: 0 });
 
   const { positionedNodes, edges } = useMemo(() => {
     if (!nodes || !nodes.length || !rootId) return { positionedNodes: [], edges: [] };
     const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 54 });
-    return { positionedNodes: p, edges: computeEdges(p, nodes) };
+    // Override positions with custom x/y if present
+    const pWithCustom = p.map(pos => {
+      const node = nodes.find(n => n.id === pos.id);
+      if (node && node.customX !== null && node.customX !== undefined && node.customY !== null && node.customY !== undefined) {
+        return { ...pos, x: node.customX, y: node.customY };
+      }
+      return pos;
+    });
+    // Override sizes with custom width/height if present
+    const pWithCustomSize = pWithCustom.map(pos => {
+      const node = nodes.find(n => n.id === pos.id);
+      if (node && node.customWidth !== null && node.customWidth !== undefined && node.customHeight !== null && node.customHeight !== undefined) {
+        return { ...pos, width: node.customWidth, height: node.customHeight };
+      }
+      return pos;
+    });
+    return { positionedNodes: pWithCustomSize, edges: computeEdges(pWithCustomSize, nodes) };
   }, [nodes, rootId]);
 
   const fitToView = useCallback(() => {
@@ -1136,12 +1416,43 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   }, [vt]);
 
   const handleMouseMove = useCallback(e => {
+    const dragState = dragStateRef.current;
+    const resizeState = resizeStateRef.current;
+
+    if (dragState.isDragging && dragState.nodeId) {
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      const newX = dragState.nodeX + dx / vt.scale;
+      const newY = dragState.nodeY + dy / vt.scale;
+      setNodePosition(dragState.nodeId, newX, newY);
+      return;
+    }
+
+    if (resizeState.isResizing && resizeState.nodeId) {
+      const dx = e.clientX - resizeState.startX;
+      const dy = e.clientY - resizeState.startY;
+      const newW = Math.max(100, resizeState.nodeW + dx / vt.scale);
+      const newH = Math.max(40, resizeState.nodeH + dy / vt.scale);
+      setNodeSize(resizeState.nodeId, newW, newH);
+      return;
+    }
+
     if (!isPanning) return;
     setVt(prev => ({ ...prev, x: e.clientX - panStart.x, y: e.clientY - panStart.y }));
-  }, [isPanning, panStart]);
+  }, [isPanning, panStart, vt, setNodePosition, setNodeSize]);
 
-  const handleMouseUp = useCallback(() => setIsPanning(false), []);
+  const handleMouseUp = useCallback(() => {
+    dragStateRef.current = { isDragging: false, nodeId: null, startX: 0, startY: 0, nodeX: 0, nodeY: 0 };
+    resizeStateRef.current = { isResizing: false, nodeId: null, startX: 0, startY: 0, nodeW: 0, nodeH: 0 };
+    setIsPanning(false);
+  }, []);
   const handleSvgClick = useCallback(e => { if (e.target === svgRef.current) { setSelectedId(null); setNotesNodeId(null); } }, [setSelectedId]);
+
+  // Toast helper
+  const showToast = useCallback(msg => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2000);
+  }, []);
 
   const handleKeyDown = useCallback(e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1154,33 +1465,87 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   const editingNode = editingId ? nodes.find(n => n.id === editingId) : null;
   const editingPos = editingId ? positionedNodes.find(p => p.id === editingId) : null;
 
-  // Add node to Tasks tab
+  // Add node (and its children recursively) to Tasks tab as subtasks
   const handleAddToTasks = useCallback(nodeId => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node || node.linkedTaskId) return;
     const project = projects.find(p => p.id === activeProjectId);
     const projectName = project ? project.name : 'Mindmap';
-    const taskTitle = node.title + ' [' + projectName + ']';
-    // Create task and get its ID
-    const taskId = uuid();
     const maxOrd = tasks.reduce((mx, tk) => (tk.status === '' || tk.status === 'u') ? Math.max(mx, tk.order ?? 0) : mx, 0);
-    onAddTask({
-      id: taskId, title: taskTitle, status: '', order: maxOrd + 1,
-      category: null, importance: null, dateAdded: now(), dateCompleted: null,
-      statusChanged: null, dueDate: null, notes: 'From mindmap: ' + projectName,
-      autoReturn: true, recurrence: null, startTime: null, endTime: null,
-      mindmapNodeId: nodeId, mindmapProjectId: activeProjectId
-    });
-    setNodeLinkedTask(nodeId, taskId);
-  }, [nodes, projects, activeProjectId, tasks, onAddTask, setNodeLinkedTask]);
+    const tasksToAdd = [];
+    const nodeLinks = [];
+
+    const addNodeRecursive = (nid, parentTaskId, ord) => {
+      const nd = nodes.find(n => n.id === nid);
+      if (!nd || nd.linkedTaskId) return ord;
+      const taskId = uuid();
+      const taskTitle = parentTaskId ? nd.title : nd.title + ' [' + projectName + ']';
+      tasksToAdd.push({
+        id: taskId, title: taskTitle, status: nd.checked ? 'x' : '', order: ord,
+        category: null, importance: null, dateAdded: now(),
+        dateCompleted: nd.checked ? now() : null,
+        statusChanged: nd.checked ? now() : null,
+        dueDate: null, notes: nd.notes || '',
+        autoReturn: true, recurrence: null, startTime: null, endTime: null,
+        eventColor: null, parentId: parentTaskId, collapsed: false, activeVisible: true,
+        mindmapNodeId: nid, mindmapProjectId: activeProjectId
+      });
+      nodeLinks.push({ nodeId: nid, taskId });
+      let nextOrd = ord + 1;
+      if (nd.children && nd.children.length > 0) {
+        nd.children.forEach(childId => {
+          nextOrd = addNodeRecursive(childId, taskId, nextOrd);
+        });
+      }
+      return nextOrd;
+    };
+
+    addNodeRecursive(nodeId, null, maxOrd + 1);
+    tasksToAdd.forEach(t => onAddTask(t));
+    nodeLinks.forEach(({ nodeId: nid, taskId }) => setNodeLinkedTask(nid, taskId));
+    const count = tasksToAdd.length;
+    showToast(count === 1 ? 'Node added to task list' : count + ' nodes added to task list');
+  }, [nodes, projects, activeProjectId, tasks, onAddTask, setNodeLinkedTask, showToast]);
+
+  // Start dragging a node
+  const handleStartDragNode = useCallback((e, nodeId) => {
+    if (e.button !== 0) return; // Left click only
+    e.stopPropagation();
+    const pos = positionedNodes.find(p => p.id === nodeId);
+    if (!pos) return;
+    dragStateRef.current = {
+      isDragging: true,
+      nodeId,
+      startX: e.clientX,
+      startY: e.clientY,
+      nodeX: pos.x,
+      nodeY: pos.y
+    };
+    setIsPanning(false);
+  }, [positionedNodes]);
+
+  // Start resizing a node
+  const handleStartResizeNode = useCallback((e, nodeId) => {
+    if (e.button !== 0) return; // Left click only
+    e.stopPropagation();
+    const pos = positionedNodes.find(p => p.id === nodeId);
+    if (!pos) return;
+    resizeStateRef.current = {
+      isResizing: true,
+      nodeId,
+      startX: e.clientX,
+      startY: e.clientY,
+      nodeW: pos.width || 200,
+      nodeH: pos.height || 54
+    };
+    setIsPanning(false);
+  }, [positionedNodes]);
 
   return (
     <div tabIndex={0} ref={canvasRef}
-      style={{display:'flex',flexDirection:'column',flex:1,height:'100%',background:'#0d1117',overflow:'hidden',outline:'none',position:'relative'}}
+      style={{display:'flex',flexDirection:'column',flex:1,height:'100%',background:'#1a1a1a',overflow:'hidden',outline:'none',position:'relative'}}
       onKeyDown={handleKeyDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
 
       {/* SVG Canvas */}
-      <svg ref={svgRef} style={{flex:1,width:'100%',height:'100%',background:'#0d1117',cursor:isPanning?'grabbing':'grab',userSelect:'none'}}
+      <svg ref={svgRef} style={{flex:1,width:'100%',height:'100%',background:'#1a1a1a',cursor:isPanning?'grabbing':'grab',userSelect:'none'}}
         onWheel={handleWheel} onMouseDown={handleSvgMouseDown} onClick={handleSvgClick}>
         <g transform={`translate(${vt.x},${vt.y}) scale(${vt.scale})`}>
           {edges.map((edge,i)=><MindmapEdge key={'me-'+i} edge={edge}/>)}
@@ -1194,10 +1559,30 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
                 <MindmapNode node={nd} position={pos} isSelected={selectedId===nd.id} isRoot={nd.id===rootId}
                   onSelect={()=>{setSelectedId(nd.id);setNotesNodeId(nd.id);}}
                   onAddChild={()=>addChild(nd.id)}
-                  onToggleCollapse={()=>toggleCollapse(nd.id)}
+                  onToggleCollapse={()=>toggleCollapse(nd.id, positionedNodes)}
                   onStartRename={()=>setEditingId(nd.id)}
-                  onToggleChecked={()=>toggleNodeChecked(nd.id)}
+                  onToggleChecked={()=>{
+                    toggleNodeChecked(nd.id);
+                    if(nd.linkedTaskId){const newChecked=!nd.checked;onChangeStatus(nd.linkedTaskId,newChecked?'x':'');}
+                  }}
                   onAddToTasks={()=>handleAddToTasks(nd.id)}
+                  onToggleNodeNotes={(closingEmpty)=>{
+                    if(closingEmpty){
+                      /* Closing notes with no content — shrink back and collapse in one update */
+                      persistNodes(nodes.map(n => n.id === nd.id ? { ...n, notesExpanded: false, customWidth: pos.width||200, customHeight: 54 } : n));
+                    } else if(!nd.notesExpanded){
+                      /* Opening notes — expand + toggle in one update */
+                      const curH = pos.height||54;
+                      const newH = curH < 180 ? 180 : curH;
+                      persistNodes(nodes.map(n => n.id === nd.id ? { ...n, notesExpanded: true, customWidth: pos.width||200, customHeight: newH } : n));
+                    } else {
+                      /* Closing notes that have content — just toggle */
+                      toggleNodeNotesExpanded(nd.id);
+                    }
+                  }}
+                  onSetNotes={notes=>setNodeNotes(nd.id, notes)}
+                  onStartDragNode={handleStartDragNode}
+                  onStartResizeNode={handleStartResizeNode}
                   tasks={tasks}/>}
             </g>;
           })}
@@ -1207,34 +1592,28 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       {/* Floating Fit button — bottom right */}
       <button onClick={fitToView} title="Fit to View"
         style={{position:'absolute',bottom:16,right:16,
-          padding:'8px 14px',background:'#141822',border:'1px solid #1e2438',color:'#d0d4e0',
+          padding:'8px 14px',background:'#242424',border:'1px solid #333333',color:'#d0d4e0',
           borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,
           fontFamily:"'JetBrains Mono',monospace",
           boxShadow:'0 2px 12px rgba(0,0,0,0.4)',transition:'all 0.15s',
           display:'flex',alignItems:'center',gap:6}}
         onMouseEnter={e=>{e.currentTarget.style.background='#1a1f30';e.currentTarget.style.borderColor='#4a9eff';}}
-        onMouseLeave={e=>{e.currentTarget.style.background='#141822';e.currentTarget.style.borderColor='#1e2438';}}>
+        onMouseLeave={e=>{e.currentTarget.style.background='#242424';e.currentTarget.style.borderColor='#333333';}}>
         ⊡ Fit
       </button>
 
-      {/* Notes panel — bottom of canvas when a node is selected */}
-      {notesNodeId && nodes.find(n => n.id === notesNodeId) && (()=>{
-        const nd = nodes.find(n => n.id === notesNodeId);
-        return (
-          <div style={{position:'absolute',bottom:0,left:0,right:0,
-            background:'#0a0e18',borderTop:'1px solid #151a28',padding:'10px 20px',
-            display:'flex',alignItems:'center',gap:12,fontSize:13}}>
-            <span style={{color:'#3a4060',fontFamily:"'JetBrains Mono',monospace",fontSize:11,flexShrink:0}}>📝</span>
-            <input value={nd.notes||''} onChange={e=>setNodeNotes(notesNodeId, e.target.value)}
-              placeholder="Add notes..."
-              style={{flex:1,border:'1px solid #1e2438',borderRadius:5,padding:'6px 10px',fontSize:12,
-                background:'#0d1117',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}
-              onFocus={e=>e.target.style.borderColor='#4a9eff'} onBlur={e=>e.target.style.borderColor='#1e2438'}/>
-            <span style={{color:'#2a3050',fontFamily:"'JetBrains Mono',monospace",fontSize:11,flexShrink:0,
-              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{nd.title}</span>
-          </div>
-        );
-      })()}
+      {/* Toast notification */}
+      {toast && (
+        <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
+          background:'#242424',border:'1px solid #333333',borderRadius:8,
+          padding:'10px 20px',fontSize:13,color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",
+          boxShadow:'0 4px 16px rgba(0,0,0,0.5)',
+          animation:'fadeInUp 0.2s ease-out',whiteSpace:'nowrap',
+          display:'flex',alignItems:'center',gap:8}}>
+          <span style={{color:'#6ecf6e',fontWeight:600}}>✓</span> {toast}
+        </div>
+      )}
+
     </div>
   );
 }
@@ -1243,9 +1622,61 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
    ── Calendar View ──
    ══════════════════════════════════════════ */
 
-function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,onUpdateTask,selId}){
-  const[calMode,setCalMode]=useState('month');
-  const[currentDate,setCurrentDate]=useState(new Date());
+function FixedCatDropdown({categories,onSelect,onClose,anchorRef}){
+  const ref=useRef(null);
+  const[pos,setPos]=useState({top:0,left:0});
+  useEffect(()=>{
+    if(anchorRef.current){
+      const r=anchorRef.current.getBoundingClientRect();
+      const dropH=Object.keys(categories).length*37+37+8;
+      const spaceBelow=window.innerHeight-r.bottom;
+      const top=spaceBelow<dropH?Math.max(4,r.top-dropH):r.bottom+4;
+      const left=Math.min(r.left,window.innerWidth-180);
+      setPos({top,left});
+    }
+  },[anchorRef,categories]);
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target)&&anchorRef.current&&!anchorRef.current.contains(e.target))onClose();};
+    document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
+  },[onClose,anchorRef]);
+  return ReactDOM.createPortal(
+    <div ref={ref} style={{position:'fixed',top:pos.top,left:pos.left,zIndex:9999,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
+      {Object.entries(categories).map(([name,cfg])=>(
+        <button key={name} onClick={()=>onSelect(name)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
+          onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <span style={{width:16,height:16,borderRadius:4,background:cfg.bg,flexShrink:0}}/><span>{name}</span>
+        </button>
+      ))}
+      <button onClick={()=>onSelect(null)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#555'}}
+        onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        <span style={{width:16,height:16,borderRadius:4,border:'1px dashed #444',flexShrink:0}}/><span>None</span>
+      </button>
+    </div>,
+    document.body
+  );
+}
+
+function CalendarCatButton({task,categories,onUpdateTask}){
+  const[open,setOpen]=useState(false);
+  const btnRef=useRef(null);
+  const catCfg=task.category&&categories[task.category];
+  return(
+    <div ref={btnRef} style={{position:'relative',flexShrink:0}} onClick={e=>e.stopPropagation()}>
+      {catCfg?(
+        <button onClick={()=>setOpen(!open)} style={{border:'none',borderRadius:4,padding:'2px 6px',fontSize:9,background:catCfg.bg,cursor:'pointer',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:catCfg.text||'#222'}}>{task.category}</button>
+      ):(
+        <button onClick={()=>setOpen(!open)} style={{border:'1px dashed #444',borderRadius:4,padding:'1px 5px',fontSize:9,color:'#555',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}}>+</button>
+      )}
+      {open&&<FixedCatDropdown categories={categories} anchorRef={btnRef} onSelect={c=>{onUpdateTask({...task,category:c});setOpen(false);}} onClose={()=>setOpen(false)}/>}
+    </div>
+  );
+}
+
+const EARLY_HOUR=8; // Hours 0-7 collapsed by default
+const EARLY_MINS=EARLY_HOUR*60; // 480 minutes
+const COLLAPSED_BAR_H=32; // Height of collapsed early-morning bar in px
+
+function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,onUpdateTask,selId,calMode,setCalMode,currentDate,setCurrentDate}){
   const[addingDate,setAddingDate]=useState(null);
   const[addInput,setAddInput]=useState('');
   const[addStartTime,setAddStartTime]=useState('');
@@ -1253,8 +1684,24 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
   const[catFilter,setCatFilter]=useState(null);
   const containerRef=useRef(null);
   const timelineRef=useRef(null);
-  const[dragState,setDragState]=useState(null); // {type:'move'|'resize', taskId, startY, origStartMin, origEndMin}
+  const gutterRef=useRef(null);
+  const weekBodyRef=useRef(null);
+  const[dragState,setDragState]=useState(null);
   const didDragRef=useRef(false);
+  const[editingTaskId,setEditingTaskId]=useState(null);
+  const[editTitle,setEditTitle]=useState('');
+  const[editStart,setEditStart]=useState('');
+  const[editEnd,setEditEnd]=useState('');
+  const[earlyExpanded,setEarlyExpanded]=useState(false);
+
+  // Sync scroll between time gutter and timeline
+  const syncScroll=useCallback(source=>{
+    const tl=timelineRef.current;
+    const gt=gutterRef.current;
+    if(!tl||!gt)return;
+    if(source==='timeline')gt.scrollTop=tl.scrollTop;
+    else tl.scrollTop=gt.scrollTop;
+  },[]);
 
   const minToTime=min=>{const h=Math.floor(Math.max(0,Math.min(1439,min))/60);const m=Math.round(Math.max(0,Math.min(1439,min))%60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');};
 
@@ -1265,19 +1712,20 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
       if(!tl)return;
       const rect=tl.getBoundingClientRect();
       const scrollTop=tl.scrollTop;
-      const mouseMin=Math.max(0,Math.min(1439,(e.clientY-rect.top+scrollTop)));
+      const rawMin=e.clientY-rect.top+scrollTop;
+      const mouseMin=Math.max(0,Math.min(1439,rawMin+(earlyExpanded?0:EARLY_MINS)));
       const deltaMin=mouseMin-dragState.startY;
       if(Math.abs(deltaMin)>2)didDragRef.current=true;
       const task=tasks.find(t=>t.id===dragState.taskId);
       if(!task)return;
       if(dragState.type==='move'){
         const duration=dragState.origEndMin-dragState.origStartMin;
-        let newStart=Math.round((dragState.origStartMin+deltaMin)/5)*5;
+        let newStart=Math.round((dragState.origStartMin+deltaMin)/15)*15;
         newStart=Math.max(0,Math.min(1440-duration,newStart));
         const newEnd=newStart+duration;
         onUpdateTask({...task,startTime:minToTime(newStart),endTime:minToTime(newEnd)});
       }else if(dragState.type==='resize'){
-        let newEnd=Math.round((dragState.origEndMin+deltaMin)/5)*5;
+        let newEnd=Math.round((dragState.origEndMin+deltaMin)/15)*15;
         newEnd=Math.max(dragState.origStartMin+15,Math.min(1440,newEnd));
         onUpdateTask({...task,endTime:minToTime(newEnd)});
       }
@@ -1286,7 +1734,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
     document.addEventListener('mousemove',handleMouseMove);
     document.addEventListener('mouseup',handleMouseUp);
     return()=>{document.removeEventListener('mousemove',handleMouseMove);document.removeEventListener('mouseup',handleMouseUp);};
-  },[dragState,tasks,onUpdateTask]);
+  },[dragState,tasks,onUpdateTask,earlyExpanded]);
 
   const filteredTasks=useMemo(()=>{
     if(!catFilter)return tasks;
@@ -1334,7 +1782,8 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
       }
       return result;
     }else{
-      return filteredTasks.filter(t=>t.dueDate&&new Date(t.dueDate).toLocaleDateString('en-CA')===new Date().toLocaleDateString('en-CA'));
+      const cd=currentDate.toLocaleDateString('en-CA');
+      return filteredTasks.filter(t=>t.dueDate&&new Date(t.dueDate).toLocaleDateString('en-CA')===cd);
     }
   },[filteredTasks,tasksByDate,currentDate,calMode]);
 
@@ -1370,18 +1819,26 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
     setAddEndTime('');
   };
 
+  const getNearestQuarter=()=>{
+    const n=new Date();
+    const mins=n.getHours()*60+n.getMinutes();
+    const snapped=Math.round(mins/15)*15;
+    return snapped>=1440?1425:snapped;
+  };
+
   const startAdding=(dateStr,startTime)=>{
     setAddingDate(dateStr);
     setAddInput('');
     if(startTime){
       setAddStartTime(startTime);
-      // Default 1 hour duration
       const[h,m]=startTime.split(':').map(Number);
       const endMin=Math.min(h*60+m+60,1440);
       setAddEndTime(minToTime(endMin));
     }else{
-      setAddStartTime('');
-      setAddEndTime('');
+      // Default to current time nearest 15min, 1hr duration
+      const snapped=getNearestQuarter();
+      setAddStartTime(minToTime(snapped));
+      setAddEndTime(minToTime(Math.min(snapped+60,1440)));
     }
   };
 
@@ -1423,14 +1880,14 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20,justifyContent:'space-between'}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>‹</button>
-              <button onClick={goToday} style={{border:'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
+              <button onClick={goToday} style={{border:'1px solid #333333',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
               <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>›</button>
               <span style={{fontSize:16,fontWeight:600,color:'#d0d4e0',minWidth:180}}>{MONTH_NAMES[m]} {y}</span>
             </div>
             <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
-              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
-              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
+              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
+              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
+              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
             </div>
           </div>
 
@@ -1452,7 +1909,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           <div style={{flex:1,display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8,overflow:'auto'}}>
             {/* Day headers */}
             {DAY_NAMES.map(dn=>(
-              <div key={dn} style={{fontSize:11,fontWeight:600,color:'#444',textAlign:'center',padding:'8px 0',borderBottom:'1px solid #151a28'}}>
+              <div key={dn} style={{fontSize:11,fontWeight:600,color:'#444',textAlign:'center',padding:'8px 0',borderBottom:'1px solid #2a2a2a'}}>
                 {dn}
               </div>
             ))}
@@ -1467,54 +1924,35 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
               return(
                 <div key={idx} style={{
                   minHeight:100,padding:8,borderRadius:8,
-                  background:isCurrentMonth?'#141822':'#0d1117',
-                  border:isToday?'2px solid #4a9eff':'1px solid #1e2438',
+                  background:isCurrentMonth?'#242424':'#1a1a1a',
+                  border:isToday?'2px solid #4a9eff':'1px solid #333333',
                   opacity:isCurrentMonth?1:0.4,
                   cursor:'pointer',
                   display:'flex',flexDirection:'column',
                   position:'relative',overflow:'hidden',
                 }}
-                onClick={()=>startAdding(cellDateStr)}>
+                onClick={()=>{setCurrentDate(new Date(cellDate));setCalMode('day');}}>
                   <div style={{fontSize:isToday?13:11,fontWeight:isToday?600:400,color:isToday?'#4a9eff':'#666',marginBottom:4}}>
                     {cellDate.getDate()}
                   </div>
 
-                  {addingDate===cellDateStr?(
-                    <div onClick={e=>e.stopPropagation()} style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(cellDateStr);if(e.key==='Escape')cancelAdding();}}
-                        placeholder="New task..." autoFocus
-                        style={{border:'1px solid #4a9eff',borderRadius:4,padding:'4px 6px',fontSize:11,background:'#0d1117',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
-                      <div style={{display:'flex',gap:3,alignItems:'center'}}>
-                        <input type="time" value={addStartTime} onChange={e=>setAddStartTime(e.target.value)}
-                          style={{flex:1,border:'1px solid #1e2438',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#0d1117',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
-                        <span style={{fontSize:9,color:'#3a4060'}}>→</span>
-                        <input type="time" value={addEndTime} onChange={e=>setAddEndTime(e.target.value)}
-                          style={{flex:1,border:'1px solid #1e2438',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#0d1117',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
-                      </div>
-                      <div style={{display:'flex',gap:4}}>
-                        <button onClick={e=>{e.stopPropagation();handleAddTask(cellDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'#4a9eff',color:'#fff',fontSize:10,cursor:'pointer',fontWeight:600}}>Add</button>
-                        <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'3px',background:'transparent',color:'#666',fontSize:10,cursor:'pointer'}}>Cancel</button>
-                      </div>
-                    </div>
-                  ):(
-                    <div style={{display:'flex',flexDirection:'column',gap:2,flex:1}}>
-                      {cellTasks.slice(0,3).map(task=>{
-                        const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
-                        return(
-                          <div key={task.id} onClick={e=>{e.stopPropagation();onSelectTask(task.id);}}
-                            style={{
-                              fontSize:10,padding:'2px 6px',borderRadius:3,borderLeft:'3px solid '+s.color,
-                              background:task.category&&categories[task.category]?categories[task.category].bg+'22':'#1a1e2e',
-                              color:'#9aa',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-                              fontWeight:500,
-                            }}>
-                            {task.title}
-                          </div>
-                        );
-                      })}
-                      {cellTasks.length>3&&<div style={{fontSize:9,color:'#555',padding:'2px 6px'}}>+{cellTasks.length-3} more</div>}
-                    </div>
-                  )}
+                  <div style={{display:'flex',flexDirection:'column',gap:2,flex:1}}>
+                    {cellTasks.slice(0,3).map(task=>{
+                      const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
+                      return(
+                        <div key={task.id} onClick={e=>{e.stopPropagation();setCurrentDate(new Date(cellDate));setCalMode('day');}}
+                          style={{
+                            fontSize:10,padding:'2px 6px',borderRadius:3,borderLeft:'3px solid '+(task.eventColor||s.color),
+                            background:task.eventColor?(task.eventColor+'22'):(task.category&&categories[task.category]?categories[task.category].bg+'22':'#2e2e2e'),
+                            color:'#9aa',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                            fontWeight:500,
+                          }}>
+                          {task.title}
+                        </div>
+                      );
+                    })}
+                    {cellTasks.length>3&&<div style={{fontSize:9,color:'#555',padding:'2px 6px'}}>+{cellTasks.length-3} more</div>}
+                  </div>
                 </div>
               );
             })}
@@ -1546,14 +1984,14 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20,justifyContent:'space-between'}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>‹</button>
-              <button onClick={goToday} style={{border:'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
+              <button onClick={goToday} style={{border:'1px solid #333333',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
               <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>›</button>
               <span style={{fontSize:16,fontWeight:600,color:'#d0d4e0',minWidth:180}}>{MONTH_NAMES[startDate.getMonth()]} {startDate.getDate()} - {MONTH_NAMES[endDate.getMonth()]} {endDate.getDate()}</span>
             </div>
             <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
-              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
-              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
+              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
+              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
+              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
             </div>
           </div>
 
@@ -1571,74 +2009,186 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             ))}
           </div>
 
-          {/* Week grid */}
-          <div style={{flex:1,display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8,overflow:'auto'}}>
-            {weekDates.map((weekDate,idx)=>{
-              const weekDateStr=weekDate.toLocaleDateString('en-CA');
-              const isToday=weekDateStr===todayStr;
-              const weekTasks=tasksByDate[weekDateStr]||[];
-
-              return(
-                <div key={idx} style={{
-                  minHeight:200,padding:12,borderRadius:8,
-                  background:'#141822',
-                  border:isToday?'2px solid #4a9eff':'1px solid #1e2438',
-                  cursor:'pointer',
-                  display:'flex',flexDirection:'column',
-                  position:'relative',overflow:'hidden',
-                }}
-                onClick={()=>startAdding(weekDateStr)}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingBottom:8,borderBottom:'1px solid #1e2438'}}>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:600,color:'#444',marginBottom:2}}>{DAY_NAMES[weekDate.getDay()]}</div>
-                      <div style={{fontSize:isToday?14:12,fontWeight:isToday?600:400,color:isToday?'#4a9eff':'#d0d4e0'}}>
-                        {weekDate.getDate()}
+          {/* Week timeline grid — fits to screen */}
+          <div ref={weekBodyRef} style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+            {/* Day headers — grid aligned with body */}
+            <div style={{display:'flex',borderBottom:'1px solid #2a2a2a',flexShrink:0}}>
+              <div style={{width:42,flexShrink:0}}/>
+              {weekDates.map((weekDate,idx)=>{
+                const weekDateStr=weekDate.toLocaleDateString('en-CA');
+                const isToday=weekDateStr===todayStr;
+                return(
+                  <div key={idx} style={{flex:1,textAlign:'center',padding:'6px 2px',borderLeft:'1px solid #2a2a2a',position:'relative'}}>
+                    {isToday?(
+                      <div style={{display:'inline-flex',flexDirection:'column',alignItems:'center',background:'rgba(74,158,255,0.12)',borderRadius:8,padding:'2px 8px'}}>
+                        <div style={{fontSize:10,fontWeight:700,color:'#4a9eff'}}>{DAY_NAMES[weekDate.getDay()]}</div>
+                        <div style={{fontSize:13,fontWeight:700,color:'#4a9eff'}}>{weekDate.getDate()}</div>
                       </div>
-                    </div>
+                    ):(
+                      <div style={{display:'inline-flex',flexDirection:'column',alignItems:'center',padding:'2px 8px'}}>
+                        <div style={{fontSize:10,fontWeight:600,color:'#444'}}>{DAY_NAMES[weekDate.getDay()]}</div>
+                        <div style={{fontSize:12,fontWeight:400,color:'#d0d4e0'}}>{weekDate.getDate()}</div>
+                      </div>
+                    )}
                   </div>
+                );
+              })}
+            </div>
 
-                  {addingDate===weekDateStr?(
-                    <div onClick={e=>e.stopPropagation()} style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(weekDateStr);if(e.key==='Escape')cancelAdding();}}
-                        placeholder="New task..." autoFocus
-                        style={{border:'1px solid #4a9eff',borderRadius:4,padding:'4px 6px',fontSize:11,background:'#0d1117',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
-                      <div style={{display:'flex',gap:3,alignItems:'center'}}>
-                        <input type="time" value={addStartTime} onChange={e=>setAddStartTime(e.target.value)}
-                          style={{flex:1,border:'1px solid #1e2438',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#0d1117',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
-                        <span style={{fontSize:9,color:'#3a4060'}}>→</span>
-                        <input type="time" value={addEndTime} onChange={e=>setAddEndTime(e.target.value)}
-                          style={{flex:1,border:'1px solid #1e2438',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#0d1117',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
+            {/* All-day events row */}
+            {(()=>{
+              const hasAllDay=weekDates.some(wd=>(tasksByDate[wd.toLocaleDateString('en-CA')]||[]).some(t=>!t.startTime&&!t.endTime));
+              if(!hasAllDay)return null;
+              return(
+                <div style={{display:'flex',borderBottom:'1px solid #2a2a2a',flexShrink:0}}>
+                  <div style={{width:42,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontSize:9,color:'#444',fontFamily:"'JetBrains Mono',monospace"}}>all</span>
+                  </div>
+                  {weekDates.map((weekDate,idx)=>{
+                    const ds=weekDate.toLocaleDateString('en-CA');
+                    const allDay=(tasksByDate[ds]||[]).filter(t=>!t.startTime&&!t.endTime);
+                    return(
+                      <div key={idx} style={{flex:1,borderLeft:'1px solid #2a2a2a',padding:'3px 2px',display:'flex',flexDirection:'column',gap:2}}>
+                        {allDay.map(task=>{
+                          const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
+                          return(
+                            <div key={task.id} onClick={()=>onSelectTask(task.id)}
+                              style={{fontSize:9,padding:'2px 4px',borderRadius:3,borderLeft:'2px solid '+(task.eventColor||s.color),
+                                background:task.eventColor?(task.eventColor+'22'):'#2e2e2e',
+                                color:'#9aa',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              {task.title}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div style={{display:'flex',gap:4}}>
-                        <button onClick={e=>{e.stopPropagation();handleAddTask(weekDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'#4a9eff',color:'#fff',fontSize:10,cursor:'pointer',fontWeight:600}}>Add</button>
-                        <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'3px',background:'transparent',color:'#666',fontSize:10,cursor:'pointer'}}>Cancel</button>
-                      </div>
-                    </div>
-                  ):(
-                    <div style={{display:'flex',flexDirection:'column',gap:3,flex:1}}>
-                      {weekTasks.map(task=>{
-                        const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
-                        const catCfg=task.category&&categories[task.category];
-                        return(
-                          <div key={task.id} onClick={e=>{e.stopPropagation();onSelectTask(task.id);}}
-                            style={{
-                              fontSize:11,padding:'6px 8px',borderRadius:4,borderLeft:'3px solid '+s.color,
-                              background:catCfg?catCfg.bg+'22':'#1a1e2e',
-                              color:'#d0d4e0',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-                              fontWeight:500,display:'flex',alignItems:'center',gap:4,
-                              border:selId===task.id?'1px solid #4a9eff':'1px solid transparent',
-                            }}>
-                            <span style={{width:16,height:16,borderRadius:4,background:s.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:s.color,flexShrink:0}}>{task.status||'·'}</span>
-                            <span style={{flex:1,minWidth:0}}>{task.title}</span>
-                            {task.recurrence&&<span style={{fontSize:10,flexShrink:0}}>🔁</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               );
-            })}
+            })()}
+
+            {/* Early morning collapsed bar */}
+            {!earlyExpanded&&(
+              <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e'}} onClick={()=>setEarlyExpanded(true)}>
+                <div style={{width:42,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'#161616',borderRight:'1px solid #2a2a2a'}}>
+                  <span style={{fontSize:9,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▼</span>
+                </div>
+                <div style={{flex:1,display:'flex',alignItems:'center',padding:'4px 8px',gap:6}}>
+                  <span style={{fontSize:9,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>00:00 – 0{EARLY_HOUR}:00</span>
+                  <span style={{fontSize:9,color:'#444'}}>expand</span>
+                </div>
+              </div>
+            )}
+
+            {/* Timeline body — fits remaining height */}
+            <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+              {/* Time gutter */}
+              <div style={{width:42,flexShrink:0,background:'#161616',borderRight:'1px solid #2a2a2a',overflow:'hidden',position:'relative'}}>
+                <div style={{position:'relative',height:'100%'}}>
+                  {Array.from({length:earlyExpanded?24:(24-EARLY_HOUR)}).map((_,i)=>{
+                    const h=earlyExpanded?i:i+EARLY_HOUR;
+                    return(
+                      <div key={h} style={{position:'absolute',top:((earlyExpanded?h:(h-EARLY_HOUR))/(earlyExpanded?24:(24-EARLY_HOUR))*100)+'%',left:0,right:0,height:(100/(earlyExpanded?24:(24-EARLY_HOUR)))+'%',borderBottom:'1px solid #2a2a2a',padding:'2px 3px',textAlign:'right'}}>
+                        <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace",color:'#606060'}}>
+                          {String(h).padStart(2,'0')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Day columns */}
+              {weekDates.map((weekDate,idx)=>{
+                const weekDateStr=weekDate.toLocaleDateString('en-CA');
+                const isToday=weekDateStr===todayStr;
+                const wkDayTasks=(tasksByDate[weekDateStr]||[]).filter(t=>t.startTime);
+                const startH=earlyExpanded?0:EARLY_HOUR;
+                const totalH=earlyExpanded?24:(24-EARLY_HOUR);
+                const minToPct=min=>((min-startH*60)/(totalH*60))*100;
+
+                return(
+                  <div key={idx} style={{flex:1,position:'relative',borderLeft:'1px solid #2a2a2a',
+                    background:isToday?'rgba(74,158,255,0.03)':'transparent'}}
+                    onClick={e=>{
+                      if(addingDate===weekDateStr)return;
+                      if(e.target!==e.currentTarget&&!e.target.dataset.weekgridline)return;
+                      const rect=e.currentTarget.getBoundingClientRect();
+                      const pct=(e.clientY-rect.top)/rect.height;
+                      const clickMin=Math.round((startH*60+pct*totalH*60)/15)*15;
+                      startAdding(weekDateStr,minToTime(Math.max(0,Math.min(1425,clickMin))));
+                    }}>
+                    {/* Hour gridlines */}
+                    {Array.from({length:totalH}).map((_,i)=>{
+                      const h=startH+i;
+                      return(
+                        <div key={h} data-weekgridline="true" style={{position:'absolute',top:(i/totalH*100)+'%',left:0,right:0,height:(100/totalH)+'%',borderBottom:'1px solid rgba(30,36,56,0.3)'}}/>
+                      );
+                    })}
+
+                    {/* Current time indicator */}
+                    {isToday&&(()=>{
+                      const nowMin=new Date().getHours()*60+new Date().getMinutes();
+                      if(!earlyExpanded&&nowMin<EARLY_MINS)return null;
+                      return <div style={{position:'absolute',top:minToPct(nowMin)+'%',left:0,right:0,height:'2px',background:'#ff6b6b',zIndex:10}}/>;
+                    })()}
+
+                    {/* Timed events — percentage positioned */}
+                    {wkDayTasks.map(task=>{
+                      const[sh,sm]=task.startTime.split(':').map(Number);
+                      const[eh,em]=(task.endTime||task.startTime).split(':').map(Number);
+                      const sMin=sh*60+sm;
+                      const eMin=eh*60+em;
+                      const dur=Math.max(eMin-sMin,15);
+                      if(!earlyExpanded&&eMin<=EARLY_MINS)return null;
+                      const topPct=Math.max(0,minToPct(sMin));
+                      const hPct=(dur/(totalH*60))*100;
+                      const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
+                      const catCfg=task.category&&categories[task.category];
+                      return(
+                        <div key={task.id} onClick={e=>{e.stopPropagation();onSelectTask(task.id);}}
+                          style={{
+                            position:'absolute',top:topPct+'%',left:2,right:2,height:hPct+'%',minHeight:16,
+                            background:task.eventColor?(task.eventColor+'33'):(catCfg?(catCfg.bg+'33'):'rgba(100,150,200,0.15)'),
+                            border:'1px solid '+(selId===task.id?'#4a9eff':(task.eventColor?(task.eventColor+'44'):(s.color+'44'))),
+                            borderRadius:3,padding:'1px 3px',cursor:'pointer',
+                            overflow:'hidden',zIndex:5,
+                            display:'flex',flexDirection:'column',
+                          }}>
+                          <div style={{fontSize:9,fontWeight:600,color:'#d0d4e0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            {task.title}
+                          </div>
+                          {hPct>4&&<div style={{fontSize:7,color:'#8a9bb8'}}>
+                            {task.startTime}{task.endTime?'-'+task.endTime:''}
+                          </div>}
+                        </div>
+                      );
+                    })}
+
+                    {/* Add task form */}
+                    {addingDate===weekDateStr&&(
+                      <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(minToPct(addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS),85)+'%',left:2,right:2,background:'#242424',border:'1px solid #4a9eff',borderRadius:4,padding:'6px',zIndex:20}}>
+                        <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(weekDateStr);if(e.key==='Escape')cancelAdding();}}
+                          placeholder="New task..." autoFocus
+                          style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,marginBottom:4}}/>
+                        <div style={{display:'flex',gap:3}}>
+                          <button onClick={e=>{e.stopPropagation();handleAddTask(weekDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'#4a9eff',color:'#fff',fontSize:9,cursor:'pointer',fontWeight:600}}>Add</button>
+                          <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'3px',background:'transparent',color:'#666',fontSize:9,cursor:'pointer'}}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Collapse button when expanded */}
+            {earlyExpanded&&(
+              <div style={{flexShrink:0,borderTop:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e',display:'flex',alignItems:'center',padding:'3px 8px',gap:6}} onClick={()=>setEarlyExpanded(false)}>
+                <span style={{fontSize:9,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▲</span>
+                <span style={{fontSize:9,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>collapse early morning</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1659,6 +2209,8 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
     const currentHour=now.getHours()+now.getMinutes()/60;
     const timelineTopPx=currentHour*60;
 
+    const dayOffset=earlyExpanded?0:EARLY_MINS;
+
     const renderTaskBlock=(task,idx)=>{
       if(!task.startTime)return null;
       const[sh,sm]=task.startTime.split(':').map(Number);
@@ -1666,7 +2218,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
       const startMin=sh*60+sm;
       const endMin=eh*60+em;
       const duration=Math.max(endMin-startMin,30);
-      const top=startMin;
+      const top=startMin-dayOffset;
       const height=duration;
       const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
       const catCfg=task.category&&categories[task.category];
@@ -1677,44 +2229,82 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
         didDragRef.current=false;
         const tl=timelineRef.current;if(!tl)return;
         const rect=tl.getBoundingClientRect();
-        const mouseMin=e.clientY-rect.top+tl.scrollTop;
+        const mouseMin=e.clientY-rect.top+tl.scrollTop+(earlyExpanded?0:EARLY_MINS);
         setDragState({type:'move',taskId:task.id,startY:mouseMin,origStartMin:startMin,origEndMin:endMin});
       };
       const handleResizeStart=e=>{
         e.stopPropagation();e.preventDefault();
         const tl=timelineRef.current;if(!tl)return;
         const rect=tl.getBoundingClientRect();
-        const mouseMin=e.clientY-rect.top+tl.scrollTop;
+        const mouseMin=e.clientY-rect.top+tl.scrollTop+(earlyExpanded?0:EARLY_MINS);
         setDragState({type:'resize',taskId:task.id,startY:mouseMin,origStartMin:startMin,origEndMin:endMin});
       };
 
+      const isEditing=editingTaskId===task.id;
+      const startEdit=()=>{
+        setEditingTaskId(task.id);
+        setEditTitle(task.title);
+        setEditStart(task.startTime||'');
+        setEditEnd(task.endTime||'');
+      };
+      const saveEdit=()=>{
+        onUpdateTask({...task,title:editTitle.trim()||task.title,startTime:editStart||task.startTime,endTime:editEnd||task.endTime});
+        setEditingTaskId(null);
+      };
+      const cancelEdit=()=>setEditingTaskId(null);
+
       return(
-        <div key={task.id} onMouseDown={handleMoveStart} onClick={e=>{if(!didDragRef.current)onSelectTask(task.id);}}
+        <div key={task.id} data-taskblock="true" onMouseDown={isEditing?undefined:handleMoveStart}
+          onClick={e=>{e.stopPropagation();if(!didDragRef.current&&!isEditing)onSelectTask(task.id);}}
+          onDoubleClick={e=>{e.stopPropagation();}}
           style={{
             position:'absolute',top:top+'px',left:'4px',right:'4px',height:height+'px',
-            background:catCfg?(catCfg.bg+'33'):'rgba(100,150,200,0.15)',
-            border:'1px solid '+(selId===task.id?'#4a9eff':s.color+'66'),
-            borderRadius:6,padding:'8px 10px',cursor:isDragging?'grabbing':'grab',
-            display:'flex',flexDirection:'column',gap:4,overflow:'hidden',
+            background:task.eventColor?(task.eventColor+'33'):(catCfg?(catCfg.bg+'33'):'rgba(100,150,200,0.15)'),
+            border:'1px solid '+(selId===task.id?'#4a9eff':(task.eventColor?(task.eventColor+'66'):(s.color+'66'))),
+            borderRadius:6,padding:'8px 10px',cursor:isEditing?'default':(isDragging?'grabbing':'grab'),
+            display:'flex',flexDirection:'column',gap:4,overflow:'visible',
             transition:isDragging?'none':'all 0.15s',
-            zIndex:isDragging?15:5,
+            zIndex:isEditing?20:(isDragging?15:5),
             opacity:isDragging?0.85:1,
             userSelect:'none',
           }}>
-          <div style={{fontSize:12,fontWeight:600,color:'#d0d4e0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',pointerEvents:'none'}}>
-            {task.title}
-          </div>
-          <div style={{fontSize:10,color:'#8a9bb8',pointerEvents:'none'}}>
-            {task.startTime}{task.endTime?'-'+task.endTime:''}
-          </div>
-          {catCfg&&<span style={{fontSize:10,background:catCfg.bg,color:catCfg.text||'#222',padding:'2px 6px',borderRadius:3,width:'fit-content',fontWeight:600,pointerEvents:'none'}}>
-            {task.category}
-          </span>}
+          {isEditing?(
+            <div style={{display:'flex',flexDirection:'column',gap:4}} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
+              <input value={editTitle} onChange={e=>setEditTitle(e.target.value)} autoFocus
+                onKeyDown={e=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')cancelEdit();}}
+                style={{border:'1px solid #4a9eff',borderRadius:4,padding:'3px 6px',fontSize:12,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:'100%'}}/>
+              <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                <input type="time" value={editStart} onChange={e=>setEditStart(e.target.value)}
+                  style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
+                <span style={{fontSize:9,color:'#606060'}}>→</span>
+                <input type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)}
+                  style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
+              </div>
+              <div style={{display:'flex',gap:3}}>
+                <button onClick={saveEdit} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'#4a9eff',color:'#fff',fontSize:10,cursor:'pointer',fontWeight:600}}>Save</button>
+                <button onClick={cancelEdit} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'3px',background:'transparent',color:'#666',fontSize:10,cursor:'pointer'}}>Cancel</button>
+              </div>
+            </div>
+          ):(
+            <>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span onDoubleClick={e=>{e.stopPropagation();if(!didDragRef.current)startEdit();}}
+                  style={{fontSize:15,fontWeight:600,color:'#d0d4e0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'text'}}>
+                  {task.title}
+                </span>
+                <span style={{fontSize:13,color:'#8a9bb8',whiteSpace:'nowrap',flexShrink:0,pointerEvents:'none'}}>
+                  {task.startTime}{task.endTime?' - '+task.endTime:''}
+                </span>
+                <span style={{flex:1}}/>
+                <CalendarCatButton task={task} categories={categories} onUpdateTask={onUpdateTask}/>
+              </div>
+            </>
+          )}
           {/* Resize handle */}
-          <div onMouseDown={handleResizeStart}
+          {!isEditing&&<div onMouseDown={handleResizeStart}
             style={{position:'absolute',bottom:0,left:0,right:0,height:8,cursor:'ns-resize',background:'transparent',borderRadius:'0 0 6px 6px'}}
             onMouseEnter={e=>{e.currentTarget.style.background='rgba(74,158,255,0.25)';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}/>
+            onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}/>}
         </div>
       );
     };
@@ -1722,24 +2312,24 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
     return(
       <div ref={containerRef} style={{display:'flex',height:'100%',flexDirection:'column',overflow:'hidden'}}>
         {/* Header */}
-        <div style={{padding:'16px 24px',borderBottom:'1px solid #151a28',display:'flex',alignItems:'center',gap:16,justifyContent:'space-between'}}>
+        <div style={{padding:'16px 24px',borderBottom:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:16,justifyContent:'space-between'}}>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>‹</button>
-            <button onClick={goToday} style={{border:'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
+            <button onClick={goToday} style={{border:'1px solid #333333',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
             <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>›</button>
             <span style={{fontSize:16,fontWeight:600,color:'#d0d4e0',minWidth:180}}>{DAY_NAMES_FULL[new Date(y,m,d).getDay()]}, {MONTH_NAMES[m]} {d}</span>
           </div>
           <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
-            <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
-            <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #1e2438',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
+            <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
+            <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
+            <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
           </div>
         </div>
 
         {/* All-day section */}
         {allDayTasks.length>0&&(
-          <div style={{padding:'12px 24px',borderBottom:'1px solid #151a28',background:'#0a0e18'}}>
-            <div style={{fontSize:12,fontWeight:600,color:'#2a3050',marginBottom:6}}>All day</div>
+          <div style={{padding:'12px 24px',borderBottom:'1px solid #2a2a2a',background:'#161616'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'#4a4a4a',marginBottom:6}}>All day</div>
             <div style={{display:'flex',flexDirection:'column',gap:4}}>
               {allDayTasks.map(task=>{
                 const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
@@ -1748,12 +2338,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                   <div key={task.id} onClick={()=>onSelectTask(task.id)}
                     style={{
                       fontSize:12,padding:'6px 10px',borderRadius:4,borderLeft:'3px solid '+s.color,
-                      background:catCfg?catCfg.bg+'22':'#1a1e2e',
+                      background:catCfg?catCfg.bg+'22':'#2e2e2e',
                       color:'#9aa',cursor:'pointer',display:'flex',alignItems:'center',gap:8,
                       border:selId===task.id?'1px solid #4a9eff':'1px solid transparent',
                     }}>
                     <span style={{width:12,height:12,borderRadius:'50%',background:s.color,flexShrink:0}}/>
                     <span style={{flex:1}}>{task.title}</span>
+                    <CalendarCatButton task={task} categories={categories} onUpdateTask={onUpdateTask}/>
                   </div>
                 );
               })}
@@ -1761,57 +2352,95 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           </div>
         )}
 
+        {/* Early morning collapsed bar */}
+        {!earlyExpanded&&(
+          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e'}} onClick={()=>setEarlyExpanded(true)}>
+            <div style={{width:60,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'#161616',borderRight:'1px solid #2a2a2a'}}>
+              <span style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▼</span>
+            </div>
+            <div style={{flex:1,display:'flex',alignItems:'center',padding:'6px 12px',gap:8}}>
+              <span style={{fontSize:11,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>00:00 – 0{EARLY_HOUR}:00</span>
+              <span style={{fontSize:10,color:'#444'}}>expand</span>
+              {/* Show current time indicator if it falls in early morning */}
+              {currentDateStr===todayStr&&timelineTopPx<EARLY_MINS&&(
+                <span style={{fontSize:10,color:'#ff6b6b',fontFamily:"'JetBrains Mono',monospace",marginLeft:'auto'}}>● {minToTime(Math.round(timelineTopPx))}</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Timeline */}
         <div style={{flex:1,display:'flex',overflow:'hidden'}}>
           {/* Time gutter */}
-          <div style={{width:60,flexShrink:0,background:'#0a0e18',borderRight:'1px solid #151a28',overflow:'auto'}}>
-            <div style={{position:'relative',height:1440}}>
-              {Array.from({length:24}).map((_,h)=>(
-                <div key={h} style={{position:'absolute',top:h*60+'px',left:0,right:0,height:60,borderBottom:'1px solid #151a28',padding:'4px 4px',textAlign:'right'}}>
-                  <span style={{fontSize:10,fontFamily:"'JetBrains Mono',monospace",color:'#3a4060'}}>
-                    {String(h).padStart(2,'0')}:00
-                  </span>
-                </div>
-              ))}
+          <div ref={gutterRef} onScroll={()=>syncScroll('gutter')} style={{width:60,flexShrink:0,background:'#161616',borderRight:'1px solid #2a2a2a',overflow:'auto',scrollbarWidth:'none',msOverflowStyle:'none'}}>
+            <div style={{position:'relative',height:(earlyExpanded?24:(24-EARLY_HOUR))*60}}>
+              {Array.from({length:earlyExpanded?24:(24-EARLY_HOUR)}).map((_,i)=>{
+                const h=earlyExpanded?i:i+EARLY_HOUR;
+                return(
+                  <div key={h} style={{position:'absolute',top:(earlyExpanded?h:(h-EARLY_HOUR))*60+'px',left:0,right:0,height:60,borderBottom:'1px solid #2a2a2a',padding:'4px 4px',textAlign:'right'}}>
+                    <span style={{fontSize:10,fontFamily:"'JetBrains Mono',monospace",color:'#606060'}}>
+                      {String(h).padStart(2,'0')}:00
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Timeline area */}
-          <div ref={timelineRef} style={{flex:1,position:'relative',overflow:'auto',background:'#0d1117'}}>
-            <div style={{position:'relative',height:1440}} onClick={e=>{
+          <div ref={timelineRef} onScroll={()=>syncScroll('timeline')} style={{flex:1,position:'relative',overflow:'auto',background:'#1a1a1a'}}>
+            <div style={{position:'relative',height:(earlyExpanded?24:(24-EARLY_HOUR))*60}} onClick={e=>{
               if(addingDate===currentDateStr||dragState)return;
+              if(didDragRef.current)return;
+              if(e.target.closest('[data-taskblock]'))return;
               const rect=e.currentTarget.getBoundingClientRect();
-              const clickMin=Math.max(0,Math.min(1439,e.clientY-rect.top));
+              const scrollTop=timelineRef.current?timelineRef.current.scrollTop:0;
+              const rawMin=e.clientY-rect.top+scrollTop;
+              const clickMin=(earlyExpanded?0:EARLY_MINS)+rawMin;
               const snapped=Math.round(clickMin/15)*15;
-              startAdding(currentDateStr,minToTime(snapped));
+              startAdding(currentDateStr,minToTime(Math.max(0,Math.min(1425,snapped))));
             }}>
               {/* Hour gridlines */}
-              {Array.from({length:24}).map((_,h)=>(
-                <div key={h} style={{position:'absolute',top:h*60+'px',left:0,right:0,height:60,borderBottom:'1px solid rgba(30,36,56,0.5)'}}/>
-              ))}
+              {Array.from({length:earlyExpanded?24:(24-EARLY_HOUR)}).map((_,i)=>{
+                const h=earlyExpanded?i:i+EARLY_HOUR;
+                return(
+                  <div key={h} data-gridline="true" style={{position:'absolute',top:(earlyExpanded?h:(h-EARLY_HOUR))*60+'px',left:0,right:0,height:60,borderBottom:'1px solid rgba(30,36,56,0.5)'}}/>
+                );
+              })}
 
               {/* Current time indicator */}
-              {currentDateStr===todayStr&&(
-                <div style={{position:'absolute',top:timelineTopPx+'px',left:0,right:0,height:'2px',background:'#ff6b6b',zIndex:10}}>
-                  <div style={{position:'absolute',left:'-6px',top:'-4px',width:8,height:8,background:'#ff6b6b',borderRadius:'50%'}}/>
-                </div>
-              )}
+              {currentDateStr===todayStr&&(()=>{
+                const indicatorMin=timelineTopPx;
+                if(!earlyExpanded&&indicatorMin<EARLY_MINS)return null;
+                const top=(earlyExpanded?indicatorMin:(indicatorMin-EARLY_MINS));
+                return(
+                  <div style={{position:'absolute',top:top+'px',left:0,right:0,height:'2px',background:'#ff6b6b',zIndex:10}}>
+                    <div style={{position:'absolute',left:'-6px',top:'-4px',width:8,height:8,background:'#ff6b6b',borderRadius:'50%'}}/>
+                  </div>
+                );
+              })()}
 
               {/* Task blocks */}
-              {timedTasks.map((task,idx)=>renderTaskBlock(task,idx))}
+              {timedTasks.map((task,idx)=>{
+                if(!task.startTime)return null;
+                const[sh,sm]=task.startTime.split(':').map(Number);
+                const taskStartMin=sh*60+sm;
+                if(!earlyExpanded&&taskStartMin<EARLY_MINS){
+                  // Task is entirely in early morning — show in collapsed bar? For now skip
+                  const[eh,em]=(task.endTime||task.startTime).split(':').map(Number);
+                  if(eh*60+em<=EARLY_MINS)return null;
+                }
+                return renderTaskBlock(task,idx);
+              })}
 
               {/* Add task form */}
               {addingDate===currentDateStr&&(
-                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min((addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):100),1340)+'px',left:'16px',right:'16px',background:'#141822',border:'1px solid #4a9eff',borderRadius:6,padding:'12px',zIndex:20}}>
+                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(((addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS)-(earlyExpanded?0:EARLY_MINS)),((earlyExpanded?24:(24-EARLY_HOUR))*60-100))+'px',left:'16px',right:'16px',background:'#242424',border:'1px solid #4a9eff',borderRadius:6,padding:'12px',zIndex:20}}>
                   <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(currentDateStr);if(e.key==='Escape')cancelAdding();}}
                     placeholder="New task..." autoFocus
                     style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,marginBottom:8}}/>
-                  <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:8}}>
-                    <input type="time" value={addStartTime} onChange={e=>setAddStartTime(e.target.value)}
-                      style={{flex:1,border:'1px solid #1e2438',borderRadius:4,padding:'4px 6px',fontSize:12,background:'#0d1117',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
-                    <span style={{fontSize:11,color:'#3a4060'}}>→</span>
-                    <input type="time" value={addEndTime} onChange={e=>setAddEndTime(e.target.value)}
-                      style={{flex:1,border:'1px solid #1e2438',borderRadius:4,padding:'4px 6px',fontSize:12,background:'#0d1117',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
+                  <div style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",marginBottom:8}}>
+                    {addStartTime}{addEndTime?' → '+addEndTime:''} <span style={{color:'#4a4a4a'}}>(drag to adjust)</span>
                   </div>
                   <div style={{display:'flex',gap:4}}>
                     <button onClick={e=>{e.stopPropagation();handleAddTask(currentDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'6px',background:'#4a9eff',color:'#fff',fontSize:11,cursor:'pointer',fontWeight:600}}>Add</button>
@@ -1822,6 +2451,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             </div>
           </div>
         </div>
+
+        {/* Collapse early morning toggle */}
+        {earlyExpanded&&(
+          <div style={{flexShrink:0,borderTop:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e',display:'flex',alignItems:'center',padding:'4px 12px',gap:8}} onClick={()=>setEarlyExpanded(false)}>
+            <span style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▲</span>
+            <span style={{fontSize:10,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>collapse early morning</span>
+          </div>)}
       </div>
     );
   }
@@ -1829,7 +2465,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
 /* ── Kbd helper ── */
 function K({children}){
-  return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid #1e2438',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'#151a28',color:'#3a4060'}}>{children}</kbd>;
+  return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid #333333',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'#2a2a2a',color:'#606060'}}>{children}</kbd>;
 }
 
 /* ══════════════════════════════════════════
@@ -1847,8 +2483,12 @@ function TaskFlow(){
   const[sidebarOpen,setSidebarOpen]=useState(true);
   const[showCatMgr,setShowCatMgr]=useState(false);
   const[showImportExport,setShowImportExport]=useState(false);
-  const[checkedInActive,setCheckedInActive]=useState(new Set());
-  const[mainTab,setMainTab]=useState('tasks');
+  const[showMmImportExport,setShowMmImportExport]=useState(false);
+  const[defaultEventColor,setDefaultEventColor]=useState('#4a9eff');
+  const[mainTab,setMainTabRaw]=useState(()=>loadLS('taskflow-mainTab')||'tasks');
+  const setMainTab=useCallback(t=>{setMainTabRaw(t);saveLS('taskflow-mainTab',t);},[]);
+  const[calMode,setCalMode]=useState('month');
+  const[calDate,setCalDate]=useState(()=>new Date());
   const[recDropOpen,setRecDropOpen]=useState(false);
   const inputRef=useRef(null);
 
@@ -1856,6 +2496,8 @@ function TaskFlow(){
   const mm=useMindmap();
   const[mmSidebarExpanded,setMmSidebarExpanded]=useState(()=>new Set(mm.rootId?[mm.rootId]:[]));
   const[addingProject,setAddingProject]=useState(false);
+  const[renamingProjectId,setRenamingProjectId]=useState(null);
+  const[renameProjectName,setRenameProjectName]=useState('');
   const[newProjectName,setNewProjectName]=useState('');
   // Keep root expanded when it changes
   useEffect(()=>{if(mm.rootId)setMmSidebarExpanded(prev=>{if(prev.has(mm.rootId))return prev;const n=new Set(prev);n.add(mm.rootId);return n;});},[mm.rootId]);
@@ -1864,18 +2506,26 @@ function TaskFlow(){
   const mmToggleSidebarExpand=useCallback(id=>{setMmSidebarExpanded(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});},[]);
 
   const handleImport=useCallback((importedTasks,importedCats,mode)=>{
+    const normalized=importedTasks.map(t=>({
+      ...t,
+      parentId:t.parentId??null,
+      collapsed:t.collapsed??false,
+      activeVisible:t.activeVisible??(t.status===''||t.status==='u'?true:false),
+      eventColor:t.eventColor??null,
+    }));
     if(mode==='replace'){
-      setTasks(importedTasks);
+      setTasks(normalized);
       if(importedCats)setCategories(importedCats);
     }else{
-      setTasks(prev=>[...prev,...importedTasks]);
+      setTasks(prev=>[...prev,...normalized]);
       if(importedCats)setCategories(prev=>({...prev,...importedCats}));
     }
   },[]);
 
-  // Auto-return & due-date processing on mount
+  // Auto-return & due-date processing on mount, also add parentId and collapsed fields if missing
   useEffect(()=>{
-    const{tasks:p1,changed:c1}=processAutoReturns(tasks);
+    const tasksWithDefaults=tasks.map(t=>({...t,parentId:t.parentId??null,collapsed:t.collapsed??false,activeVisible:t.activeVisible??(t.status===''||t.status==='u'?true:false)}));
+    const{tasks:p1,changed:c1}=processAutoReturns(tasksWithDefaults);
     const{tasks:p2,changed:c2}=processDueDates(p1);
     if(c1||c2){setTasks(p2);saveLS(TASK_KEY,p2);}
   },[]);
@@ -1900,13 +2550,12 @@ function TaskFlow(){
     const m={};Object.keys(categories).forEach(n=>{m[n[0].toLowerCase()]=n;});return m;
   },[categories]);
 
-  /* ── Status change: tasks stay in Active view until manually cleared ── */
+  /* ── Status change: tasks stay in Active view (activeVisible) until manually cleared ── */
   const changeStatus=useCallback((taskId,newStatus)=>{
     if(newStatus&&newStatus!==''){
-      setCheckedInActive(prev=>new Set(prev).add(taskId));
       setTasks(prev=>prev.map(t=>{
         if(t.id!==taskId)return t;
-        const upd={...t,status:newStatus,statusChanged:now(),
+        const upd={...t,status:newStatus,statusChanged:now(),activeVisible:true,
           dateCompleted:newStatus==='x'?now():(newStatus===''?null:t.dateCompleted),
           autoReturn:newStatus==='t'||newStatus==='w'||newStatus==='m'?true:(newStatus==='l'?false:t.autoReturn),
         };
@@ -1917,17 +2566,18 @@ function TaskFlow(){
         return upd;
       }));
     }else{
-      setCheckedInActive(prev=>{const n=new Set(prev);n.delete(taskId);return n;});
       setTasks(prev=>prev.map(t=>{
         if(t.id!==taskId)return t;
-        return{...t,status:'',statusChanged:now(),dateCompleted:null,autoReturn:true};
+        return{...t,status:'',statusChanged:now(),dateCompleted:null,autoReturn:true,activeVisible:true};
       }));
     }
     // Sync to mindmap node if linked
     mm.syncNodeFromTask(taskId, newStatus||'');
   },[mm]);
 
-  const clearChecked=useCallback(()=>{setCheckedInActive(new Set());},[]);
+  const clearChecked=useCallback(()=>{
+    setTasks(prev=>prev.map(t=>(t.status!==''&&t.status!=='u'&&t.activeVisible)?{...t,activeVisible:false}:t));
+  },[]);
 
   /* ── Keyboard ── */
   useEffect(()=>{
@@ -1952,19 +2602,30 @@ function TaskFlow(){
     setSelId(vis[ni].id);
   };
 
-  const addTask=useCallback((title,dueDate=null,startTime=null,endTime=null)=>{
+  const addTask=useCallback((title,dueDate=null,startTime=null,endTime=null,parentId=null)=>{
     let t=title.trim(),cat=null;
     const m=t.match(/#([A-Za-z])$/);
     if(m){const s=m[1].toLowerCase();if(catShortcuts[s]){cat=catShortcuts[s];t=t.replace(/#[A-Za-z]$/,'').trim();}}
     if(!t)return;
     const maxOrd=tasks.reduce((mx,tk)=>(tk.status===''||tk.status==='u')?Math.max(mx,tk.order??0):mx,0);
-    setTasks(prev=>[...prev,{id:uuid(),title:t,status:'',order:maxOrd+1,category:cat,importance:null,dateAdded:now(),dateCompleted:null,statusChanged:null,dueDate,notes:'',autoReturn:true,recurrence:null,startTime:startTime||null,endTime:endTime||null}]);
-  },[tasks,catShortcuts]);
+    setTasks(prev=>[...prev,{id:uuid(),title:t,status:'',order:maxOrd+1,category:cat,importance:null,dateAdded:now(),dateCompleted:null,statusChanged:null,dueDate,notes:'',autoReturn:true,recurrence:null,startTime:startTime||null,endTime:endTime||null,eventColor:dueDate?defaultEventColor:null,parentId:parentId||null,collapsed:false,activeVisible:true}]);
+  },[tasks,catShortcuts,defaultEventColor]);
 
   // Raw task add for mindmap integration (accepts full task object)
   const addTaskRaw=useCallback(task=>{setTasks(prev=>[...prev,task]);},[]);
 
   const updateTask=useCallback(u=>{setTasks(prev=>prev.map(t=>t.id===u.id?u:t));},[]);
+
+  const toggleCollapse=useCallback(taskId=>{
+    setTasks(prev=>prev.map(t=>t.id===taskId?{...t,collapsed:!t.collapsed}:t));
+  },[]);
+
+  const addSubtask=useCallback((parentId)=>{
+    const t='New subtask';
+    const cat=null;
+    const maxOrd=0;
+    setTasks(prev=>[...prev,{id:uuid(),title:t,status:'',order:maxOrd,category:cat,importance:null,dateAdded:now(),dateCompleted:null,statusChanged:null,dueDate:null,notes:'',autoReturn:true,recurrence:null,startTime:null,endTime:null,eventColor:null,parentId:parentId,collapsed:false,activeVisible:true}]);
+  },[]);
 
   /* ── Drag & drop ── */
   const handleDragStart=(e,i)=>{setDragIdx(i);e.dataTransfer.effectAllowed='move';};
@@ -1983,17 +2644,38 @@ function TaskFlow(){
   /* ── Filtering ── */
   const getVis=taskList=>{
     let f;
-    if(view==='active')f=taskList.filter(t=>t.status===''||t.status==='u'||checkedInActive.has(t.id));
+    if(view==='active')f=taskList.filter(t=>t.activeVisible);
     else if(view==='all')f=[...taskList];
     else f=taskList.filter(t=>t.status===view);
     if(catFilter)f=f.filter(t=>t.category===catFilter);
     if(search){const q=search.toLowerCase();f=f.filter(t=>t.title.toLowerCase().includes(q)||(t.notes&&t.notes.toLowerCase().includes(q)));}
+    // Filter to include only top-level tasks (parentId is null or undefined)
+    f=f.filter(t=>!t.parentId);
     if(view==='active')f.sort((a,b)=>{if(a.status==='u'&&b.status!=='u')return-1;if(b.status==='u'&&a.status!=='u')return 1;return(a.order??9999)-(b.order??9999);});
     else f.sort((a,b)=>new Date(b.dateAdded)-new Date(a.dateAdded));
     return f;
   };
 
-  const filtered=useMemo(()=>getVis(tasks),[tasks,view,catFilter,search,checkedInActive]);
+  const filtered=useMemo(()=>getVis(tasks),[tasks,view,catFilter,search]);
+
+  // Helper to render task with its subtasks recursively
+  const renderTaskWithChildren=(task,idx,depth=0)=>{
+    const children=tasks.filter(t=>t.parentId===task.id);
+    const hasChildren=children.length>0;
+    return(
+      <React.Fragment key={task.id}>
+        <TaskRow task={task} idx={idx} isSelected={selId===task.id} onSelect={setSelId}
+          onUpdate={updateTask} onChangeStatus={changeStatus} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop}
+          showOrder={view==='active'} categories={categories} depth={depth} hasChildren={hasChildren}
+          onToggleCollapse={toggleCollapse} onAddSubtask={addSubtask}/>
+        {hasChildren&&!task.collapsed&&(
+          <div style={{display:'flex',flexDirection:'column',gap:2}}>
+            {children.map((child,cidx)=>renderTaskWithChildren(child,cidx,depth+1))}
+          </div>
+        )}
+      </React.Fragment>
+    );
+  };
 
   const grouped=useMemo(()=>{
     if(view==='active')return null;
@@ -2004,13 +2686,15 @@ function TaskFlow(){
   const counts=useMemo(()=>{
     const c={active:0,t:0,w:0,m:0,l:0,x:0,s:0,all:tasks.length};
     tasks.forEach(t=>{
-      if(t.status===''||t.status==='u'||checkedInActive.has(t.id))c.active++;
+      if(t.activeVisible)c.active++;
+      if(t.status===''||t.status==='u'){/* already counted above */}
       else if(c[t.status]!==undefined)c[t.status]++;
     });
     return c;
-  },[tasks,checkedInActive]);
+  },[tasks]);
 
-  const hasChecked=checkedInActive.size>0;
+  const checkedCount=useMemo(()=>tasks.filter(t=>t.activeVisible&&t.status!==''&&t.status!=='u').length,[tasks]);
+  const hasChecked=checkedCount>0;
   const selTask=selId?tasks.find(t=>t.id===selId):null;
 
   /* ══════════════════════════════════════
@@ -2020,23 +2704,30 @@ function TaskFlow(){
     <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
 
       {/* ── Sidebar ── */}
-      <div style={{width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'#0a0e18',display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',borderRight:'1px solid #151a28'}}>
+      <div style={{width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'#161616',display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',borderRight:'1px solid #2a2a2a'}}>
 
         {/* Logo */}
-        <div style={{padding:sidebarOpen?'20px 16px 16px':'20px 10px 16px',display:'flex',alignItems:'center',gap:10,cursor:'pointer',borderBottom:'1px solid #151a28'}}
+        <div style={{padding:sidebarOpen?'18px 16px 14px':'18px 10px 14px',display:'flex',alignItems:'center',gap:0,cursor:'pointer',borderBottom:'1px solid #2a2a2a'}}
           onClick={()=>setSidebarOpen(!sidebarOpen)}>
-          <span style={{fontSize:22,width:34,height:34,display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#4a9eff,#7c5cff)',borderRadius:8,flexShrink:0,color:'#fff'}}>⚡</span>
-          {sidebarOpen&&<span style={{color:'#e0e0e0',fontWeight:700,fontSize:17,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5}}>TaskFlow</span>}
+          {sidebarOpen?(
+            <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1}}>
+              <span style={{color:'#e0e0e0'}}>Task</span><span style={{color:'#a58dbd'}}>F</span><span style={{color:'#bc8c74'}}>l</span><span style={{color:'#81c9b9'}}>o</span><span style={{color:'#d596ae'}}>w</span>
+            </span>
+          ):(
+            <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
+              <span style={{color:'#e0e0e0'}}>T</span><span style={{color:'#a58dbd'}}>F</span>
+            </span>
+          )}
         </div>
 
         {/* Main/Calendar tab toggle */}
-        {sidebarOpen&&<div style={{padding:'12px 12px',display:'flex',gap:6,borderBottom:'1px solid #151a28'}}>
+        {sidebarOpen&&<div style={{padding:'12px 12px',display:'flex',gap:6,borderBottom:'1px solid #2a2a2a'}}>
           <button onClick={()=>setMainTab('tasks')}
-            style={{flex:1,border:mainTab==='tasks'?'1.5px solid #4a9eff':'1.5px solid #1e2438',borderRadius:6,padding:'8px',background:mainTab==='tasks'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='tasks'?'#4a9eff':'#666',fontWeight:600}}>☰ Tasks</button>
+            style={{flex:1,border:mainTab==='tasks'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='tasks'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='tasks'?'#4a9eff':'#666',fontWeight:600}}>☰ Tasks</button>
           <button onClick={()=>setMainTab('calendar')}
-            style={{flex:1,border:mainTab==='calendar'?'1.5px solid #4a9eff':'1.5px solid #1e2438',borderRadius:6,padding:'8px',background:mainTab==='calendar'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='calendar'?'#4a9eff':'#666',fontWeight:600}}>📅 Calendar</button>
+            style={{flex:1,border:mainTab==='calendar'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='calendar'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='calendar'?'#4a9eff':'#666',fontWeight:600}}>📅 Calendar</button>
           <button onClick={()=>setMainTab('mindmap')}
-            style={{flex:1,border:mainTab==='mindmap'?'1.5px solid #4a9eff':'1.5px solid #1e2438',borderRadius:6,padding:'8px',background:mainTab==='mindmap'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='mindmap'?'#4a9eff':'#666',fontWeight:600}}>🧠 Mindmap</button>
+            style={{flex:1,border:mainTab==='mindmap'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='mindmap'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='mindmap'?'#4a9eff':'#666',fontWeight:600}}>🧠 Mindmap</button>
         </div>}
 
         {/* View buttons — only show in Tasks tab */}
@@ -2046,7 +2737,7 @@ function TaskFlow(){
             const sc=STATUS_CONFIG[v.key==='active'?'':v.key];
             const useColor=sc?.sidebarColor;
             const activeColor=useColor?(sc?.color||'#d0d4e0'):'#d0d4e0';
-            const inactiveColor=useColor?(sc?.color||'#3a4060'):'#3a4060';
+            const inactiveColor=useColor?(sc?.color||'#606060'):'#606060';
             return(
               <button key={v.key} onClick={()=>{setView(v.key);setCatFilter(null);setSearch('');setShowCatMgr(false);}}
                 style={{display:'flex',alignItems:'center',gap:12,width:'100%',border:'none',
@@ -2061,9 +2752,9 @@ function TaskFlow(){
                 onMouseEnter={e=>{if(!act)e.currentTarget.style.opacity='0.8';}}
                 onMouseLeave={e=>{if(!act)e.currentTarget.style.opacity='0.5';}}>
                 <span style={{width:28,height:28,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",flexShrink:0,
-                  background:v.key==='all'?'transparent':(v.key==='active'?'#151a28':(sc?.bg||'#151a28')),
-                  color:v.key==='all'?(act?activeColor:inactiveColor):(v.key==='active'?'#2a3050':(sc?.color||'#2a3050')),
-                  border:v.key==='all'?'none':(v.key==='active'?'2px solid #1e2438':'none'),
+                  background:v.key==='all'?'transparent':(v.key==='active'?'#2a2a2a':(sc?.bg||'#2a2a2a')),
+                  color:v.key==='all'?(act?activeColor:inactiveColor):(v.key==='active'?'#4a4a4a':(sc?.color||'#4a4a4a')),
+                  border:v.key==='all'?'none':(v.key==='active'?'2px solid #333333':'none'),
                 }}>{v.key==='all'?'≡':v.icon}</span>
                 {sidebarOpen&&<>
                   <span style={{flex:1,textAlign:'left'}}>{v.label}</span>
@@ -2076,28 +2767,28 @@ function TaskFlow(){
 
         {/* Category manager toggle */}
         {sidebarOpen&&mainTab==='tasks'&&<button onClick={()=>setShowCatMgr(!showCatMgr)}
-          style={{margin:'0 12px',padding:'10px 12px',border:'1px solid #151a28',borderRadius:8,
+          style={{margin:'0 12px',padding:'10px 12px',border:'1px solid #2a2a2a',borderRadius:8,
             background:showCatMgr?'rgba(74,158,255,0.08)':'transparent',
-            color:showCatMgr?'#d0d4e0':'#3a4060',cursor:'pointer',fontSize:14,textAlign:'left',
+            color:showCatMgr?'#d0d4e0':'#606060',cursor:'pointer',fontSize:14,textAlign:'left',
             display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
           }}
-          onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>{if(!showCatMgr)e.currentTarget.style.color='#3a4060';}}>
+          onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>{if(!showCatMgr)e.currentTarget.style.color='#606060';}}>
           <span style={{fontSize:15}}>🎨</span><span>Categories</span>
         </button>}
 
         {/* Import/Export toggle */}
         {sidebarOpen&&mainTab==='tasks'&&<button onClick={()=>setShowImportExport(true)}
-          style={{margin:'6px 12px 0',padding:'10px 12px',border:'1px solid #151a28',borderRadius:8,
+          style={{margin:'6px 12px 0',padding:'10px 12px',border:'1px solid #2a2a2a',borderRadius:8,
             background:'transparent',
-            color:'#3a4060',cursor:'pointer',fontSize:14,textAlign:'left',
+            color:'#606060',cursor:'pointer',fontSize:14,textAlign:'left',
             display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
           }}
-          onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#3a4060'}>
+          onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#606060'}>
           <span style={{fontSize:15}}>↕</span><span>Import / Export</span>
         </button>}
 
         {/* Keyboard shortcuts */}
-        {sidebarOpen&&mainTab==='tasks'&&<div style={{padding:'14px 16px',borderTop:'1px solid #151a28',color:'#2a3050',fontSize:11,fontFamily:"'JetBrains Mono',monospace",lineHeight:2.1,marginTop:12}}>
+        {sidebarOpen&&mainTab==='tasks'&&<div style={{padding:'14px 16px',borderTop:'1px solid #2a2a2a',color:'#4a4a4a',fontSize:11,fontFamily:"'JetBrains Mono',monospace",lineHeight:2.1,marginTop:12}}>
           <div><K>x</K> done <K>s</K> skip</div>
           <div><K>t</K> tmrw <K>w</K> week <K>m</K> month</div>
           <div><K>l</K> long <K>u</K> urgent</div>
@@ -2108,15 +2799,32 @@ function TaskFlow(){
         {/* ── Mindmap sidebar: Projects + Tree ── */}
         {mainTab==='mindmap'&&sidebarOpen&&<>
           {/* Project list */}
-          <div style={{padding:'8px 0',borderBottom:'1px solid #151a28'}}>
+          <div style={{padding:'8px 0',borderBottom:'1px solid #2a2a2a'}}>
             {mm.projects.map(p=>{
               const isActive=p.id===mm.activeProjectId;
-              return(
+              const isRenaming=renamingProjectId===p.id;
+              return isRenaming?(
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+                  background:'rgba(74,158,255,0.08)',padding:'7px 16px',
+                  borderLeft:'3px solid #4a9eff'}}>
+                  <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'#4a9eff',flexShrink:0}}/>
+                  <input value={renameProjectName} onChange={e=>setRenameProjectName(e.target.value)}
+                    onKeyDown={e=>{
+                      if(e.key==='Enter'&&renameProjectName.trim()){mm.renameProject(p.id,renameProjectName.trim());setRenamingProjectId(null);setRenameProjectName('');}
+                      if(e.key==='Escape'){setRenamingProjectId(null);setRenameProjectName('');}
+                    }}
+                    onBlur={()=>{if(renameProjectName.trim()){mm.renameProject(p.id,renameProjectName.trim());}setRenamingProjectId(null);setRenameProjectName('');}}
+                    autoFocus
+                    style={{flex:1,border:'1px solid #4a9eff',borderRadius:4,padding:'3px 8px',fontSize:15,
+                      background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:600,outline:'none'}}/>
+                </div>
+              ):(
                 <button key={p.id} onClick={()=>mm.switchProject(p.id)}
+                  onDoubleClick={e=>{e.stopPropagation();setRenamingProjectId(p.id);setRenameProjectName(p.name);}}
                   style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',
                     background:isActive?'rgba(74,158,255,0.08)':'transparent',
                     padding:'10px 16px',cursor:'pointer',
-                    color:isActive?'#d0d4e0':'#3a4060',opacity:isActive?1:0.6,
+                    color:isActive?'#d0d4e0':'#606060',opacity:isActive?1:0.6,
                     transition:'all 0.15s',fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:isActive?600:400,
                     borderLeft:isActive?'3px solid #4a9eff':'3px solid transparent',
                   }}
@@ -2133,16 +2841,16 @@ function TaskFlow(){
                 <input value={newProjectName} onChange={e=>setNewProjectName(e.target.value)}
                   onKeyDown={e=>{if(e.key==='Enter'&&newProjectName.trim()){mm.addProject(newProjectName.trim());setAddingProject(false);setNewProjectName('');}if(e.key==='Escape'){setAddingProject(false);setNewProjectName('');}}}
                   placeholder="Project name..." autoFocus
-                  style={{flex:1,border:'1px solid #1e2438',borderRadius:4,padding:'5px 8px',fontSize:12,background:'#0d1117',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+                  style={{flex:1,border:'1px solid #333333',borderRadius:4,padding:'5px 8px',fontSize:12,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
               </div>
             ):(
               <button onClick={()=>setAddingProject(true)}
                 style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',
                   background:'transparent',padding:'8px 16px',cursor:'pointer',
-                  color:'#2a3050',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
+                  color:'#4a4a4a',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
                   transition:'color 0.15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='#4a9eff'}
-                onMouseLeave={e=>e.currentTarget.style.color='#2a3050'}>
+                onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>
                 <span style={{fontSize:16,fontWeight:700}}>+</span>
                 <span>New Project</span>
               </button>
@@ -2151,15 +2859,15 @@ function TaskFlow(){
 
           {/* Tree header with expand/collapse */}
           <div style={{padding:'10px 12px 6px',display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:11,fontWeight:600,color:'#3a4060',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Nodes</span>
+            <span style={{fontSize:11,fontWeight:600,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Nodes</span>
             <button onClick={mmExpandAll} title="Expand all"
-              style={{border:'1px solid #1e2438',borderRadius:3,padding:'2px 5px',background:'transparent',
-                color:'#2a3050',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#2a3050'}>⊞</button>
+              style={{border:'1px solid #333333',borderRadius:3,padding:'2px 5px',background:'transparent',
+                color:'#4a4a4a',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>⊞</button>
             <button onClick={mmCollapseAll} title="Collapse all"
-              style={{border:'1px solid #1e2438',borderRadius:3,padding:'2px 5px',background:'transparent',
-                color:'#2a3050',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#2a3050'}>⊟</button>
+              style={{border:'1px solid #333333',borderRadius:3,padding:'2px 5px',background:'transparent',
+                color:'#4a4a4a',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>⊟</button>
           </div>
 
           {/* Tree navigator */}
@@ -2170,40 +2878,77 @@ function TaskFlow(){
           </div>
 
           {/* Color palette + delete at bottom */}
-          <div style={{padding:'8px 12px',borderTop:'1px solid #151a28',display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',flexDirection:'column',gap:6}}>
             <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
-              {MINDMAP_COLORS.map(c=>(
-                <button key={c} onClick={()=>{if(mm.selectedId)mm.setNodeColor(mm.selectedId,c);}}
-                  disabled={!mm.selectedId}
+              {MINDMAP_COLORS.map(c=>{
+                const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
+                const isActive=selNode?selNode.color===c:mm.defaultNodeColor===c;
+                return(
+                <button key={c} onClick={()=>{if(mm.selectedId)mm.setNodeColor(mm.selectedId,c);else mm.setDefaultNodeColor(c);}}
                   style={{width:20,height:20,background:c,
-                    border:mm.selectedId&&mm.nodes.find(n=>n.id===mm.selectedId)?.color===c?'2px solid #fff':'1px solid rgba(255,255,255,0.12)',
-                    borderRadius:3,cursor:mm.selectedId?'pointer':'default',opacity:mm.selectedId?1:0.35,transition:'all 0.2s'}}/>
-              ))}
+                    border:isActive?'2px solid #fff':'1px solid rgba(255,255,255,0.12)',
+                    borderRadius:3,cursor:'pointer',opacity:1,transition:'all 0.2s'}}/>
+                );
+              })}
             </div>
-            <button onClick={()=>{if(mm.selectedId&&mm.selectedId!==mm.rootId){mm.deleteNode(mm.selectedId);mm.setSelectedId(null);}}}
-              disabled={!mm.selectedId||mm.selectedId===mm.rootId}
-              style={{padding:'5px 0',background:mm.selectedId&&mm.selectedId!==mm.rootId?'rgba(255,107,107,0.12)':'transparent',
-                border:'1px solid '+(mm.selectedId&&mm.selectedId!==mm.rootId?'rgba(255,107,107,0.25)':'#1e2438'),
-                color:mm.selectedId&&mm.selectedId!==mm.rootId?'#ff6b6b':'#2a3050',borderRadius:4,
-                cursor:mm.selectedId&&mm.selectedId!==mm.rootId?'pointer':'default',fontSize:11,fontWeight:500,
-                fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}>Delete node</button>
+            {!mm.selectedId&&<div style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new nodes</div>}
+            {(()=>{
+              const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
+              const isRoot=mm.selectedId===mm.rootId;
+              const isProject=isRoot;
+              const canDeleteProject=isProject&&mm.projects.length>1;
+              const canDelete=mm.selectedId&&(canDeleteProject||(!isRoot));
+              const descendants=selNode&&!isRoot?mm.findDescendants(mm.selectedId):[];
+              const totalDelete=1+descendants.length;
+              const label=isProject?'Delete project':'Delete node';
+              const needsConfirm=isProject||totalDelete>1;
+              return(
+                <button onClick={()=>{
+                  if(!canDelete)return;
+                  if(needsConfirm){
+                    const msg=isProject
+                      ?'Delete project "'+mm.projects.find(p=>p.id===mm.activeProjectId)?.name+'" and all its nodes? This cannot be undone.'
+                      :'Delete this node and '+descendants.length+' child node'+(descendants.length===1?'':'s')+'? This cannot be undone.';
+                    if(!window.confirm(msg))return;
+                  }
+                  if(isProject){mm.deleteProject(mm.activeProjectId);mm.setSelectedId(null);}
+                  else{mm.deleteNode(mm.selectedId);mm.setSelectedId(null);}
+                }}
+                  disabled={!canDelete}
+                  style={{padding:'5px 0',background:canDelete?'rgba(255,107,107,0.12)':'transparent',
+                    border:'1px solid '+(canDelete?'rgba(255,107,107,0.25)':'#333333'),
+                    color:canDelete?'#ff6b6b':'#4a4a4a',borderRadius:4,
+                    cursor:canDelete?'pointer':'default',fontSize:11,fontWeight:500,
+                    fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}>{label}</button>
+              );
+            })()}
+            <button onClick={()=>setShowMmImportExport(true)}
+              style={{marginTop:6,padding:'5px 0',background:'transparent',
+                border:'1px solid #333333',color:'#606060',borderRadius:4,
+                cursor:'pointer',fontSize:11,fontWeight:500,width:'100%',
+                fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
+              onMouseEnter={e=>{e.currentTarget.style.color='#6a7090';e.currentTarget.style.borderColor='#4a4a4a';}}
+              onMouseLeave={e=>{e.currentTarget.style.color='#606060';e.currentTarget.style.borderColor='#333333';}}>
+              <span style={{fontSize:13}}>↕</span> Import / Export
+            </button>
           </div>
         </>}
 
         {/* ── Calendar sidebar: task list ── */}
         {mainTab==='calendar'&&sidebarOpen&&<>
           <div style={{padding:'10px 12px 6px',display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:11,fontWeight:600,color:'#3a4060',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Tasks with dates</span>
+            <span style={{fontSize:13,fontWeight:600,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Tasks with dates</span>
           </div>
           <div style={{flex:1,overflow:'auto',padding:'2px 0 8px'}}>
             {tasks.filter(t=>t.dueDate).length===0?(
-              <div style={{padding:'12px 16px',fontSize:12,color:'#2a3050',textAlign:'center'}}>No scheduled tasks</div>
+              <div style={{padding:'12px 16px',fontSize:14,color:'#4a4a4a',textAlign:'center'}}>No scheduled tasks</div>
             ):(
               tasks.filter(t=>t.dueDate).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||'')).map(task=>{
                 const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
                 const catCfg=task.category&&categories[task.category];
                 return(
-                  <div key={task.id} onClick={()=>setSelId(task.id)}
+                  <div key={task.id} onClick={()=>{setSelId(task.id);if(task.dueDate){setCalDate(new Date(task.dueDate+'T12:00:00'));setCalMode('day');}}}
                     style={{
                       padding:'7px 14px',cursor:'pointer',borderLeft:'2px solid '+(selId===task.id?'#4a9eff':'transparent'),
                       background:selId===task.id?'rgba(74,158,255,0.08)':'transparent',
@@ -2211,16 +2956,42 @@ function TaskFlow(){
                     }}
                     onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}
                     onMouseLeave={e=>{if(selId!==task.id)e.currentTarget.style.background='transparent';}}>
-                    <span style={{width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0}}/>
+                    <span style={{width:10,height:10,borderRadius:'50%',background:task.eventColor||s.color,flexShrink:0}}/>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,color:'#9aa',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</div>
-                      <div style={{fontSize:10,color:'#3a4060',fontFamily:"'JetBrains Mono',monospace"}}>{task.dueDate}{task.startTime?' '+task.startTime:''}</div>
+                      <div style={{fontSize:14,color:'#9aa',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</div>
+                      <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>{task.dueDate}{task.startTime?' '+task.startTime:''}</div>
                     </div>
-                    {catCfg&&<span style={{fontSize:9,background:catCfg.bg,color:catCfg.text||'#222',padding:'1px 5px',borderRadius:3,fontWeight:600,flexShrink:0}}>{task.category}</span>}
+                    <div style={{flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                      <CalendarCatButton task={task} categories={categories} onUpdateTask={updateTask}/>
+                    </div>
                   </div>
                 );
               })
             )}
+          </div>
+
+          {/* Color palette + delete event at bottom */}
+          <div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',flexDirection:'column',gap:6}}>
+            <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
+              {MINDMAP_COLORS.map(c=>{
+                const selTask=selId?tasks.find(t=>t.id===selId):null;
+                const isActive=selTask?selTask.eventColor===c:defaultEventColor===c;
+                return(
+                <button key={c} onClick={()=>{if(selId){const t=tasks.find(tk=>tk.id===selId);if(t)updateTask({...t,eventColor:c});}else setDefaultEventColor(c);}}
+                  style={{width:20,height:20,background:c,
+                    border:isActive?'2px solid #fff':'1px solid rgba(255,255,255,0.12)',
+                    borderRadius:3,cursor:'pointer',opacity:1,transition:'all 0.2s'}}/>
+                );
+              })}
+            </div>
+            {!selId&&<div style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new events</div>}
+            <button onClick={()=>{if(selId){setTasks(prev=>prev.filter(t=>t.id!==selId));setSelId(null);}}}
+              disabled={!selId}
+              style={{padding:'5px 0',background:selId?'rgba(255,107,107,0.12)':'transparent',
+                border:'1px solid '+(selId?'rgba(255,107,107,0.25)':'#333333'),
+                color:selId?'#ff6b6b':'#4a4a4a',borderRadius:4,
+                cursor:selId?'pointer':'default',fontSize:11,fontWeight:500,
+                fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}>Delete event</button>
           </div>
         </>}
       </div>
@@ -2229,18 +3000,18 @@ function TaskFlow(){
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
         {/* Header bar - only show in Tasks tab */}
-        {mainTab==='tasks'&&<div style={{padding:'16px 24px',borderBottom:'1px solid #151a28',display:'flex',alignItems:'center',gap:16,background:'#0a0e18'}}>
+        {mainTab==='tasks'&&<div style={{padding:'16px 24px',borderBottom:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:16,background:'#161616'}}>
           <div style={{flex:1}}>
             <h1 style={{fontSize:22,fontWeight:600,display:'flex',alignItems:'center',gap:10,color:'#d0d4e0'}}>
               <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:7,
-                background:view==='all'?'transparent':(view==='active'?'#151a28':(STATUS_CONFIG[view]?.bg||'#151a28')),
-                color:view==='all'?'#d0d4e0':(view==='active'?'#2a3050':(STATUS_CONFIG[view]?.color||'#2a3050')),
-                border:view==='active'?'2px solid #1e2438':'none',
+                background:view==='all'?'transparent':(view==='active'?'#2a2a2a':(STATUS_CONFIG[view]?.bg||'#2a2a2a')),
+                color:view==='all'?'#d0d4e0':(view==='active'?'#4a4a4a':(STATUS_CONFIG[view]?.color||'#4a4a4a')),
+                border:view==='active'?'2px solid #333333':'none',
                 fontSize:15,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>
                 {VIEWS.find(v=>v.key===view)?.icon}
               </span>
               {VIEWS.find(v=>v.key===view)?.label}
-              <span style={{fontSize:15,fontWeight:400,color:'#3a4060',fontFamily:"'JetBrains Mono',monospace"}}>{filtered.length}</span>
+              <span style={{fontSize:15,fontWeight:400,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>{filtered.length}</span>
             </h1>
           </div>
 
@@ -2262,9 +3033,9 @@ function TaskFlow(){
           {/* Search */}
           <div style={{position:'relative'}}>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
-              style={{border:'1px solid #1e2438',borderRadius:6,padding:'8px 12px 8px 32px',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:210,background:'#0d1117',color:'#d0d4e0',transition:'border-color 0.15s'}}
-              onFocus={e=>e.target.style.borderColor='#4a9eff'} onBlur={e=>e.target.style.borderColor='#1e2438'}/>
-            <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:14,color:'#2a3050'}}>⌕</span>
+              style={{border:'1px solid #333333',borderRadius:6,padding:'8px 12px 8px 32px',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:210,background:'#1a1a1a',color:'#d0d4e0',transition:'border-color 0.15s'}}
+              onFocus={e=>e.target.style.borderColor='#4a9eff'} onBlur={e=>e.target.style.borderColor='#333333'}/>
+            <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:14,color:'#4a4a4a'}}>⌕</span>
           </div>
         </div>}
 
@@ -2274,12 +3045,12 @@ function TaskFlow(){
         ):mainTab==='mindmap'?(
           <MindmapTab mm={mm} tasks={tasks} onAddTask={addTaskRaw} onChangeStatus={changeStatus}/>
         ):(mainTab==='calendar'?(
-          <CalendarView tasks={tasks} categories={categories} onAddTask={addTask} onSelectTask={setSelId} onChangeStatus={changeStatus} onUpdateTask={updateTask} selId={selId}/>
+          <CalendarView tasks={tasks} categories={categories} onAddTask={addTask} onSelectTask={setSelId} onChangeStatus={changeStatus} onUpdateTask={updateTask} selId={selId} calMode={calMode} setCalMode={setCalMode} currentDate={calDate} setCurrentDate={setCalDate}/>
         ):(
           <>
             {/* Quick entry + clear button (active view only) */}
             {view==='active'&&(
-              <div style={{padding:'14px 24px',borderBottom:'1px solid #151a28',background:'#0a0e18'}}>
+              <div style={{padding:'14px 24px',borderBottom:'1px solid #2a2a2a',background:'#161616'}}>
                 <div style={{display:'flex',gap:10,alignItems:'center'}}>
                   <span style={{color:'#4a9eff',fontSize:22,fontWeight:700}}>+</span>
                   <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
@@ -2292,9 +3063,9 @@ function TaskFlow(){
                       transition:'all 0.15s',whiteSpace:'nowrap'}}
                     onMouseEnter={e=>e.currentTarget.style.background='rgba(110,207,110,0.2)'}
                     onMouseLeave={e=>e.currentTarget.style.background='rgba(110,207,110,0.1)'}>
-                    ✓ Clear checked ({checkedInActive.size})
+                    ✓ Clear checked ({checkedCount})
                   </button>}
-                  <span style={{fontSize:12,color:'#2a3050',fontFamily:"'JetBrains Mono',monospace"}}>⏎ enter</span>
+                  <span style={{fontSize:12,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace"}}>⏎ enter</span>
                 </div>
               </div>
             )}
@@ -2302,30 +3073,22 @@ function TaskFlow(){
             {/* Task list */}
             <div style={{flex:1,overflow:'auto',padding:'8px 12px 60px'}}>
               {filtered.length===0?(
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60%',color:'#2a3050',gap:12}}>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60%',color:'#4a4a4a',gap:12}}>
                   <span style={{fontSize:44}}>{view==='active'?'✨':view==='x'?'📦':'📋'}</span>
                   <span style={{fontSize:16}}>{view==='active'?'All clear — add a task to get started.':'No tasks here.'}</span>
                 </div>
               ):view==='active'?(
                 <div style={{display:'flex',flexDirection:'column',gap:2,paddingTop:4}}>
-                  {filtered.map((task,idx)=>(
-                    <TaskRow key={task.id} task={task} idx={idx} isSelected={selId===task.id} onSelect={setSelId}
-                      onUpdate={updateTask} onChangeStatus={changeStatus} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop}
-                      showOrder={true} categories={categories}/>
-                  ))}
+                  {filtered.map((task,idx)=>renderTaskWithChildren(task,idx,0))}
                 </div>
               ):(
                 grouped?.map(([dk,dayTasks])=>(
                   <div key={dk} style={{marginBottom:24}}>
-                    <div style={{fontSize:13,fontWeight:600,color:'#2a3050',fontFamily:"'JetBrains Mono',monospace",padding:'12px 16px 6px',letterSpacing:0.5,textTransform:'uppercase',borderBottom:'1px solid #151a28',marginBottom:6}}>
+                    <div style={{fontSize:13,fontWeight:600,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace",padding:'12px 16px 6px',letterSpacing:0.5,textTransform:'uppercase',borderBottom:'1px solid #2a2a2a',marginBottom:6}}>
                       {fmtDay(dk+'T12:00:00')}
                     </div>
                     <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                      {dayTasks.map((task,idx)=>(
-                        <TaskRow key={task.id} task={task} idx={idx} isSelected={selId===task.id} onSelect={setSelId}
-                          onUpdate={updateTask} onChangeStatus={changeStatus} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop}
-                          showOrder={false} categories={categories}/>
-                      ))}
+                      {dayTasks.map((task,idx)=>renderTaskWithChildren(task,idx,0))}
                     </div>
                   </div>
                 ))
@@ -2338,7 +3101,7 @@ function TaskFlow(){
         {selTask&&(mainTab==='tasks'||mainTab==='calendar')&&(()=>{
           const task=selTask;
           return(
-            <div style={{borderTop:'1px solid #151a28',padding:'10px 24px',background:'#0a0e18',display:'flex',alignItems:'center',gap:16,fontSize:13,fontFamily:"'JetBrains Mono',monospace",color:'#3a4060',flexWrap:'wrap'}}>
+            <div style={{borderTop:'1px solid #2a2a2a',padding:'10px 24px',background:'#161616',display:'flex',alignItems:'center',gap:16,fontSize:13,fontFamily:"'JetBrains Mono',monospace",color:'#606060',flexWrap:'wrap'}}>
               <span style={{fontWeight:600,color:'#6a7090',maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</span>
               <span>added {fmt(task.dateAdded)}</span>
               {task.dateCompleted&&<span style={{color:'#5a8a5a'}}>done {fmt(task.dateCompleted)}</span>}
@@ -2346,7 +3109,7 @@ function TaskFlow(){
               {/* Auto-return button */}
               {(task.status==='t'||task.status==='w'||task.status==='m')&&(
                 <button onClick={()=>updateTask({...task,autoReturn:!task.autoReturn})}
-                  style={{border:'1px solid #1e2438',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.autoReturn?'#1a2a1a':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.autoReturn?'#6ecf6e':'#3a4060'}}>
+                  style={{border:'1px solid #333333',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.autoReturn?'#1a2a1a':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.autoReturn?'#6ecf6e':'#606060'}}>
                   ↩ auto-return {task.autoReturn?'on':'off'}
                 </button>
               )}
@@ -2354,7 +3117,7 @@ function TaskFlow(){
               {/* Recurrence button */}
               <div style={{position:'relative'}}>
                 <button onClick={()=>setRecDropOpen(!recDropOpen)}
-                  style={{border:'1px solid #1e2438',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.recurrence?'#1a2a3e':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.recurrence?'#50a0e0':'#3a4060'}}>
+                  style={{border:'1px solid #333333',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.recurrence?'#1a2a3e':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.recurrence?'#50a0e0':'#606060'}}>
                   🔁 {task.recurrence?describeRecurrence(task.recurrence):'repeat off'}
                 </button>
                 {recDropOpen&&<RecurrenceDropdown task={task} onSelect={rec=>{updateTask({...task,recurrence:rec});setRecDropOpen(false);}} onClose={()=>setRecDropOpen(false)}/>}
@@ -2362,7 +3125,7 @@ function TaskFlow(){
 
               {/* Notes input */}
               <input value={task.notes||''} onChange={e=>updateTask({...task,notes:e.target.value})} placeholder="Add notes..."
-                style={{flex:1,border:'1px solid #1e2438',borderRadius:5,padding:'4px 8px',fontSize:12,background:'#0d1117',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+                style={{flex:1,border:'1px solid #333333',borderRadius:5,padding:'4px 8px',fontSize:12,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
 
               {/* Close button */}
               <button onClick={()=>setSelId(null)}
@@ -2380,6 +3143,44 @@ function TaskFlow(){
         onExportJson={()=>exportToJson(tasks,categories)}
         onExportXlsx={()=>exportToXlsx(tasks)}
         taskCount={tasks.length}
+      />}
+      {showMmImportExport&&<MindmapImportExportModal
+        onClose={()=>setShowMmImportExport(false)}
+        projects={mm.projects}
+        projectCount={mm.projects.length}
+        nodeCount={mm.projects.reduce((s,p)=>{const n=loadLS('taskflow-mm-'+p.id,[]);return s+n.length;},0)}
+        onImport={(importedProjects,mode)=>{
+          if(mode==='replace'){
+            /* Remove all existing project data */
+            mm.projects.forEach(p=>{try{localStorage.removeItem('taskflow-mm-'+p.id);}catch(e){}});
+            /* Save imported projects and their nodes */
+            const projList=importedProjects.map(p=>({id:p.id,name:p.name,color:p.color||'#4a9eff'}));
+            saveLS('taskflow-mm-projects',projList);
+            importedProjects.forEach(p=>{saveLS('taskflow-mm-'+p.id,p.nodes||[]);});
+            /* Reload by switching to first project */
+            window.location.reload();
+          }else{
+            /* Merge: add imported projects alongside existing, rename on conflict */
+            const existingNames=new Set(mm.projects.map(p=>p.name));
+            const newProjects=[...mm.projects];
+            importedProjects.forEach(ip=>{
+              let name=ip.name;
+              if(existingNames.has(name)){let i=2;while(existingNames.has(name+' ('+i+')'))i++;name=name+' ('+i+')';}
+              const newId=uuid();
+              const nodeIdMap={};
+              const nodes=(ip.nodes||[]).map(n=>{const nid=uuid();nodeIdMap[n.id]=nid;return{...n,id:nid};});
+              nodes.forEach(n=>{
+                if(n.parentId)n.parentId=nodeIdMap[n.parentId]||n.parentId;
+                if(n.children)n.children=n.children.map(c=>nodeIdMap[c]||c);
+              });
+              newProjects.push({id:newId,name,color:ip.color||'#4a9eff'});
+              existingNames.add(name);
+              saveLS('taskflow-mm-'+newId,nodes);
+            });
+            saveLS('taskflow-mm-projects',newProjects);
+            window.location.reload();
+          }
+        }}
       />}
     </div>
   );
