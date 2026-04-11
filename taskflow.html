@@ -1042,7 +1042,7 @@ function CategoryManager({categories,onUpdate}){
  * and push the right subtree far enough so no nodes overlap, with a minimum gap.
  */
 
-function buildTreeStructure(nodes, rootId) {
+function buildTreeStructure(nodes, rootId, preserveOrder) {
   const nodeMap = new Map();
   nodes.forEach(node => { nodeMap.set(node.id, { ...node, _children: [] }); });
   nodes.forEach(node => {
@@ -1051,6 +1051,20 @@ function buildTreeStructure(nodes, rootId) {
       if (parent) parent._children.push(nodeMap.get(node.id));
     }
   });
+  // When preserveOrder is true, sort children by their current x-position
+  // so the layout algorithm preserves existing horizontal ordering
+  if (preserveOrder) {
+    nodeMap.forEach(node => {
+      if (node._children.length > 1) {
+        node._children.sort((a, b) => {
+          const ax = (a.customX != null) ? a.customX : Infinity;
+          const bx = (b.customX != null) ? b.customX : Infinity;
+          if (ax === bx) return 0;
+          return ax - bx;
+        });
+      }
+    });
+  }
   return nodeMap.get(rootId);
 }
 
@@ -1187,8 +1201,8 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
 }
 
 function computeTreeLayout(nodes, rootId, options = {}) {
-  const { horizontalSpacing = 120, verticalSpacing = 80, nodeWidth = 200, nodeHeight = 54 } = options;
-  const treeRoot = buildTreeStructure(nodes, rootId);
+  const { horizontalSpacing = 120, verticalSpacing = 80, nodeWidth = 200, nodeHeight = 54, preserveOrder = false } = options;
+  const treeRoot = buildTreeStructure(nodes, rootId, preserveOrder);
   if (!treeRoot) return [];
   const results = rtLayout(treeRoot, nodeWidth, nodeHeight);
   // Scale factor: ensure nodes are separated by at least nodeWidth + gap
@@ -1544,14 +1558,48 @@ function useMindmap(sbSession) {
     const newId = uuid();
     const parentNode = nodes.find(n => n.id === parentId);
     const childColor = parentNode ? (parentNode.color || defaultNodeColor) : defaultNodeColor;
-    // If parent has a custom position, compute child's initial custom position relative to parent
-    let childCustomX = null, childCustomY = null;
-    if (parentNode && parentNode.customX !== null && parentNode.customX !== undefined) {
-      const siblingCount = (parentNode.children || []).length;
-      childCustomX = parentNode.customX + (siblingCount - Math.floor(siblingCount / 2)) * 130;
-      childCustomY = (parentNode.customY ?? 0) + 100;
+    // Use the same spacing constants as computeTreeLayout
+    const nodeW = 200, nodeH = 54, hStep = 230, vStep = 100; // hStep = nodeW(200) + gap(30)
+    let childX = null, childY = null;
+    if (parentNode && parentNode.customX != null) {
+      const parentX = parentNode.customX;
+      const parentY = parentNode.customY ?? 0;
+      childY = parentY + vStep;
+      // Find existing siblings that are positioned on the map
+      const siblingIds = (parentNode.children || []);
+      const siblings = siblingIds
+        .map(sid => nodes.find(n => n.id === sid))
+        .filter(n => n && n.customX != null)
+        .sort((a, b) => a.customX - b.customX);
+      if (siblings.length === 0) {
+        // First child: center under parent
+        childX = parentX;
+      } else {
+        // Place to the right of the rightmost sibling, one hStep apart
+        childX = siblings[siblings.length - 1].customX + hStep;
+      }
+      // Collision check: make sure we don't land on any other node on the map
+      const occupied = nodes
+        .filter(n => n.customX != null && n.customY != null)
+        .map(n => ({ x: n.customX, y: n.customY, w: n.customWidth || nodeW, h: n.customHeight || nodeH }));
+      const collides = (x, y) => occupied.some(o =>
+        x < o.x + o.w + hStep - nodeW && x + nodeW + hStep - nodeW > o.x &&
+        y < o.y + o.h && y + nodeH > o.y
+      );
+      // If collision, nudge rightward in hStep increments; then try left
+      if (collides(childX, childY)) {
+        let found = false;
+        for (let off = hStep; off < 5000; off += hStep) {
+          if (!collides(childX + off, childY)) { childX += off; found = true; break; }
+        }
+        if (!found) {
+          for (let off = hStep; off < 5000; off += hStep) {
+            if (!collides(childX - off, childY)) { childX -= off; break; }
+          }
+        }
+      }
     }
-    const nn = [...nodes, { id:newId, parentId, title, color:childColor, collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:childCustomX, customY:childCustomY, customWidth:null, customHeight:null }];
+    const nn = [...nodes, { id:newId, parentId, title, color:childColor, collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:childX, customY:childY, customWidth:null, customHeight:null }];
     const p = nn.find(n => n.id === parentId);
     if (p) p.children = [...(p.children || []), newId];
     persistNodes(nn);
@@ -1626,15 +1674,38 @@ function useMindmap(sbSession) {
     persistNodes(nodes.map(n => n.linkedTaskId === taskId ? { ...n, checked: newStatus === 'x' } : n));
   }, [nodes, persistNodes]);
 
-  // Apply auto-layout: one-shot action that computes optimal tree positions
-  // and saves them as custom positions (so the user stays in freeform mode after)
-  const applyAutoLayout = useCallback(() => {
-    const treePositions = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 54 });
+  // Apply auto-layout to a node and its visible children.
+  // Computes optimal subtree layout anchored at the node's current position.
+  const applyAutoLayout = useCallback((targetId) => {
+    const nid = targetId || rootId;
+    if (!nid) return;
+    // Get all descendant IDs that are currently visible (not hidden by collapse)
+    const subtreeIds = new Set([nid]);
+    const stack = [nid];
+    while (stack.length) {
+      const cur = stack.pop();
+      const nd = nodes.find(n => n.id === cur);
+      if (nd && !nd.collapsed && nd.children) {
+        nd.children.forEach(ch => { subtreeIds.add(ch); stack.push(ch); });
+      }
+    }
+    // Build a sub-node list for just this subtree
+    const subtreeNodes = nodes.filter(n => subtreeIds.has(n.id));
+    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 54, preserveOrder: true });
+    if (!treePositions.length) return;
+    // Anchor: offset the computed layout so the target node stays at its current position
+    const targetNode = nodes.find(n => n.id === nid);
+    const targetTreePos = treePositions.find(p => p.id === nid);
+    // Use existing custom position, or fall back to (0,0)
+    const anchorX = (targetNode && targetNode.customX != null) ? targetNode.customX : 0;
+    const anchorY = (targetNode && targetNode.customY != null) ? targetNode.customY : 0;
+    const offsetX = anchorX - (targetTreePos ? targetTreePos.x : 0);
+    const offsetY = anchorY - (targetTreePos ? targetTreePos.y : 0);
     const posMap = new Map();
     treePositions.forEach(p => posMap.set(p.id, p));
     persistNodes(nodes.map(n => {
       const tp = posMap.get(n.id);
-      if (tp) return { ...n, customX: tp.x, customY: tp.y, customWidth: null, customHeight: null };
+      if (tp) return { ...n, customX: tp.x + offsetX, customY: tp.y + offsetY, customWidth: null, customHeight: null };
       return n;
     }));
   }, [nodes, rootId, persistNodes]);
@@ -1769,8 +1840,7 @@ const MINDMAP_COLORS=['#4a9eff','#6ecf6e','#f0c040','#ff6b6b','#b080e0','#e08050
 function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   const { nodes, rootId, selectedId, setSelectedId, persistNodes, addChild, deleteNode, renameNode, setNodeColor,
     toggleCollapse, setNodeNotes, toggleNodeChecked, toggleNodeNotesExpanded, setNodeLinkedTask, syncNodeFromTask, findDescendants, setNodePosition, setNodeSize,
-    projects, activeProjectId, switchProject, addProject, renameProject, deleteProject, copyNode, pasteNode, clipboardRef,
-    applyAutoLayout } = mm;
+    projects, activeProjectId, switchProject, addProject, renameProject, deleteProject, copyNode, pasteNode, clipboardRef } = mm;
 
   const [vt, setVt] = useState({ x: 0, y: 0, scale: 1 });
   const [toast, setToast] = useState(null);
@@ -1781,7 +1851,6 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   const canvasRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
   const [notesNodeId, setNotesNodeId] = useState(null);
-  const [showAutoLayoutConfirm, setShowAutoLayoutConfirm] = useState(false);
   // Drag state
   const dragStateRef = useRef({ isDragging: false, nodeId: null, startX: 0, startY: 0, nodeX: 0, nodeY: 0 });
   const resizeStateRef = useRef({ isResizing: false, nodeId: null, startX: 0, startY: 0, nodeW: 0, nodeH: 0 });
@@ -2023,59 +2092,18 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
         </g>
       </svg>
 
-      {/* Floating buttons — bottom right */}
-      <div style={{position:'absolute',bottom:16,right:16,display:'flex',gap:8,alignItems:'center'}}>
-        <button onClick={()=>setShowAutoLayoutConfirm(true)} title="Auto-arrange nodes in a clean tree layout"
-          style={{padding:'8px 14px',background:'#242424',
-            border:'1px solid #333333',color:'#d0d4e0',
-            borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,
-            fontFamily:"'JetBrains Mono',monospace",
-            boxShadow:'0 2px 12px rgba(0,0,0,0.4)',transition:'all 0.15s',
-            display:'flex',alignItems:'center',gap:6}}
-          onMouseEnter={e=>{e.currentTarget.style.background='#1a1f30';e.currentTarget.style.borderColor='#4a9eff';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='#242424';e.currentTarget.style.borderColor='#333333';}}>
-          ⊞ Auto-layout
-        </button>
-        <button onClick={fitToView} title="Fit to View"
-          style={{padding:'8px 14px',background:'#242424',border:'1px solid #333333',color:'#d0d4e0',
-            borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,
-            fontFamily:"'JetBrains Mono',monospace",
-            boxShadow:'0 2px 12px rgba(0,0,0,0.4)',transition:'all 0.15s',
-            display:'flex',alignItems:'center',gap:6}}
-          onMouseEnter={e=>{e.currentTarget.style.background='#1a1f30';e.currentTarget.style.borderColor='#4a9eff';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='#242424';e.currentTarget.style.borderColor='#333333';}}>
-          ⊡ Fit
-        </button>
-      </div>
-
-      {/* Auto-layout confirmation modal */}
-      {showAutoLayoutConfirm && (
-        <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}
-          onClick={()=>setShowAutoLayoutConfirm(false)}>
-          <div style={{background:'#1c2030',border:'1px solid #333',borderRadius:12,padding:24,maxWidth:400,width:'90%',
-            boxShadow:'0 8px 32px rgba(0,0,0,0.6)',fontFamily:"'IBM Plex Sans',sans-serif"}}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:16,fontWeight:700,color:'#d0d4e0',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
-              <span style={{color:'#f0c040'}}>⚠</span> Apply Auto-Layout?
-            </div>
-            <div style={{fontSize:13,color:'#8a90a8',lineHeight:1.6,marginBottom:20}}>
-              This will rearrange all visible nodes into an optimized tree layout. Any custom positioning and sizing you've done will be replaced. This cannot be undone.
-            </div>
-            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
-              <button onClick={()=>setShowAutoLayoutConfirm(false)}
-                style={{padding:'8px 18px',background:'#242424',border:'1px solid #444',borderRadius:6,
-                  color:'#d0d4e0',cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:"'JetBrains Mono',monospace"}}>
-                Cancel
-              </button>
-              <button onClick={()=>{applyAutoLayout();setShowAutoLayoutConfirm(false);setInitialized(false);}}
-                style={{padding:'8px 18px',background:'#4a9eff',border:'none',borderRadius:6,
-                  color:'#fff',cursor:'pointer',fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>
-                Apply Layout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Floating Fit button — bottom right */}
+      <button onClick={fitToView} title="Fit to View"
+        style={{position:'absolute',bottom:16,right:16,
+          padding:'8px 14px',background:'#242424',border:'1px solid #333333',color:'#d0d4e0',
+          borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,
+          fontFamily:"'JetBrains Mono',monospace",
+          boxShadow:'0 2px 12px rgba(0,0,0,0.4)',transition:'all 0.15s',
+          display:'flex',alignItems:'center',gap:6}}
+        onMouseEnter={e=>{e.currentTarget.style.background='#1a1f30';e.currentTarget.style.borderColor='#4a9eff';}}
+        onMouseLeave={e=>{e.currentTarget.style.background='#242424';e.currentTarget.style.borderColor='#333333';}}>
+        ⊡ Fit
+      </button>
 
       {/* Toast notification */}
       {toast && (
@@ -3467,8 +3495,26 @@ function TaskFlow({ session, onSignOut }){
             );
           })()}
 
-          {/* Color palette + delete at bottom */}
+          {/* Auto-layout + Color palette + delete at bottom */}
           <div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',flexDirection:'column',gap:6}}>
+            {(()=>{
+              const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
+              const hasChildren=selNode&&selNode.children&&selNode.children.length>0;
+              return(
+                <button onClick={()=>{if(selNode&&hasChildren)mm.applyAutoLayout(mm.selectedId);else if(!selNode&&mm.rootId)mm.applyAutoLayout(mm.rootId);}}
+                  disabled={!hasChildren&&!!mm.selectedId}
+                  title={selNode?'Auto-arrange '+selNode.title+' and its children':'Select a node with children to auto-layout'}
+                  style={{padding:'5px 0',
+                    background:(hasChildren||!mm.selectedId)?'rgba(74,158,255,0.08)':'transparent',
+                    border:'1px solid '+((hasChildren||!mm.selectedId)?'rgba(74,158,255,0.25)':'#333333'),
+                    color:(hasChildren||!mm.selectedId)?'#4a9eff':'#4a4a4a',borderRadius:4,
+                    cursor:(hasChildren||!mm.selectedId)?'pointer':'default',fontSize:11,fontWeight:600,
+                    fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+                  <span style={{fontSize:12}}>⊞</span> Auto-layout{selNode?' subtree':''}
+                </button>
+              );
+            })()}
             <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
               {MINDMAP_COLORS.map(c=>{
                 const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
