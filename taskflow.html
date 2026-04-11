@@ -578,6 +578,154 @@ function MindmapImportExportModal({onClose,projects,onImport,nodeCount,projectCo
   );
 }
 
+/* ── Claude Prompt Generator ── */
+
+function generateClaudePrompt(rootNode, allNodes, projectName) {
+  // Build tree structure text from nodes
+  function buildTreeText(nodeId, depth) {
+    const node = allNodes.find(n => n.id === nodeId);
+    if (!node) return '';
+    const indent = '  '.repeat(depth);
+    const status = node.checked ? ' [COMPLETED]' : '';
+    let line = indent + '- ' + node.title + status + '\n';
+    if (node.notes && node.notes.trim()) {
+      const notesLines = node.notes.trim().split('\n');
+      notesLines.forEach(nl => {
+        line += indent + '  > ' + nl + '\n';
+      });
+    }
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(childId => {
+        line += buildTreeText(childId, depth + 1);
+      });
+    }
+    return line;
+  }
+
+  // Count stats
+  function countNodes(nodeId) {
+    const node = allNodes.find(n => n.id === nodeId);
+    if (!node) return { total: 0, completed: 0, pending: 0 };
+    let total = 1, completed = node.checked ? 1 : 0;
+    (node.children || []).forEach(cid => {
+      const sub = countNodes(cid);
+      total += sub.total;
+      completed += sub.completed;
+    });
+    return { total, completed, pending: total - completed };
+  }
+
+  const stats = countNodes(rootNode.id);
+  const treeText = buildTreeText(rootNode.id, 0);
+
+  // Build the prompt
+  const prompt = `You are a planning and implementation agent. I need you to analyze the following task tree and generate a detailed, actionable plan to complete all remaining work.
+
+## Project Context
+**Project:** ${projectName}
+**Branch:** ${rootNode.title}
+**Progress:** ${stats.completed}/${stats.total} tasks completed (${stats.pending} remaining)
+
+## Task Tree
+The following is a hierarchical breakdown of the work. Items marked [COMPLETED] are already done. Indentation indicates parent-child relationships. Lines starting with ">" are notes/details for that task.
+
+\`\`\`
+${treeText.trimEnd()}
+\`\`\`
+
+## Instructions
+1. Review the entire task tree above, paying attention to the hierarchy and any notes attached to tasks.
+2. Identify all incomplete tasks and understand their relationships to parent/sibling tasks.
+3. Generate a step-by-step implementation plan that:
+   - Respects the dependency order implied by the tree structure
+   - Accounts for what has already been completed
+   - Breaks down any high-level tasks into concrete actions
+   - Identifies potential blockers or decisions that need to be made
+   - Suggests a logical ordering for parallel vs sequential work
+4. For each step, provide:
+   - What to do
+   - Why it matters in context of the overall branch
+   - Any relevant details from the notes
+   - Estimated complexity (small / medium / large)
+
+Please output the plan in a clear, numbered format that can be executed sequentially.`;
+
+  return prompt;
+}
+
+function ClaudePromptModal({ onClose, prompt, branchName, stats }) {
+  const ref = useRef(null);
+  const textRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
+  }, [onClose]);
+
+  const handleCopy = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(prompt).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } else if (textRef.current) {
+      textRef.current.select();
+      document.execCommand('copy');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
+      <div ref={ref} style={{background:'#242424',border:'1px solid #333333',borderRadius:14,padding:28,width:620,maxWidth:'90vw',maxHeight:'85vh',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <div>
+            <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:18}}>🤖</span> Claude Code Prompt
+            </h2>
+            <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace",marginTop:4}}>
+              Branch: {branchName} — {stats.pending} task{stats.pending===1?'':'s'} remaining
+            </div>
+          </div>
+          <button onClick={onClose} style={{border:'none',background:'transparent',color:'#555',fontSize:22,cursor:'pointer',padding:'0 4px'}}
+            onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#555'}>×</button>
+        </div>
+
+        <div style={{flex:1,overflow:'auto',marginBottom:16,position:'relative'}}>
+          <textarea ref={textRef} readOnly value={prompt}
+            style={{
+              width:'100%',minHeight:320,background:'#1a1a1a',border:'1px solid #333333',borderRadius:8,
+              color:'#d0d4e0',fontSize:12,lineHeight:'1.6',fontFamily:"'JetBrains Mono',monospace",
+              padding:16,resize:'vertical',outline:'none',boxSizing:'border-box',
+            }}
+            onFocus={e=>e.currentTarget.style.borderColor='#4a9eff'}
+            onBlur={e=>e.currentTarget.style.borderColor='#333333'}/>
+        </div>
+
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button onClick={onClose}
+            style={{padding:'8px 18px',background:'transparent',border:'1px solid #333333',color:'#6a7090',
+              borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='#4a4a4a';e.currentTarget.style.color='#d0d4e0';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='#333333';e.currentTarget.style.color='#6a7090';}}>
+            Close
+          </button>
+          <button onClick={handleCopy}
+            style={{padding:'8px 22px',background:copied?'rgba(110,207,110,0.15)':'rgba(74,158,255,0.12)',
+              border:'1px solid '+(copied?'rgba(110,207,110,0.3)':'rgba(74,158,255,0.3)'),
+              color:copied?'#6ecf6e':'#4a9eff',borderRadius:6,cursor:'pointer',
+              fontSize:12,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",
+              transition:'all 0.15s',display:'flex',alignItems:'center',gap:6}}>
+            {copied ? '✓ Copied!' : '📋 Copy to Clipboard'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Recurrence Dropdown ── */
 function RecurrenceDropdown({task,onSelect,onClose}){
   const ref=useRef(null);
@@ -1398,7 +1546,7 @@ function useMindmap(sbSession) {
     nodes, rootId, selectedId, setSelectedId, persistNodes,
     addChild, deleteNode, renameNode, setNodeColor, toggleCollapse, moveNode, setNodePosition, setNodeSize,
     setNodeNotes, toggleNodeChecked, toggleNodeNotesExpanded, setNodeLinkedTask, syncNodeFromTask, findDescendants,
-    projects, activeProjectId, switchProject, addProject, renameProject, deleteProject,
+    projects, activeProjectId, switchProject, addProject, renameProject, deleteProject, persistProjects,
     defaultNodeColor, setDefaultNodeColor, copyNode, pasteNode, clipboardRef,
   };
 }
@@ -2608,6 +2756,7 @@ function TaskFlow({ session, onSignOut }){
   const[showCatMgr,setShowCatMgr]=useState(false);
   const[showImportExport,setShowImportExport]=useState(false);
   const[showMmImportExport,setShowMmImportExport]=useState(false);
+  const[claudePromptData,setClaudePromptData]=useState(null);
   const[defaultEventColor,setDefaultEventColor]=useState('#4a9eff');
   const[mainTab,setMainTabRaw]=useState(()=>loadLS('taskflow-mainTab')||'tasks');
   const setMainTab=useCallback(t=>{setMainTabRaw(t);saveLS('taskflow-mainTab',t);if(session)debouncedSaveSB('taskflow-mainTab',t);},[session]);
@@ -3065,6 +3214,45 @@ function TaskFlow({ session, onSignOut }){
               expandedIds={mmSidebarExpanded} onToggleExpand={mmToggleSidebarExpand}/>}
           </div>
 
+          {/* Generate Claude Prompt button — above color controls */}
+          {mm.selectedId&&(()=>{
+            const selNode=mm.nodes.find(n=>n.id===mm.selectedId);
+            if(!selNode)return null;
+            const descendants=mm.findDescendants(mm.selectedId);
+            const totalNodes=1+descendants.length;
+            const project=mm.projects.find(p=>p.id===mm.activeProjectId);
+            const projectName=project?project.name:'Mindmap';
+            return(
+              <div style={{padding:'6px 12px'}}>
+                <button onClick={()=>{
+                  const prompt=generateClaudePrompt(selNode,mm.nodes,projectName);
+                  function countNodes(nid){
+                    const nd=mm.nodes.find(n=>n.id===nid);
+                    if(!nd)return{total:0,completed:0,pending:0};
+                    let total=1,completed=nd.checked?1:0;
+                    (nd.children||[]).forEach(cid=>{const sub=countNodes(cid);total+=sub.total;completed+=sub.completed;});
+                    return{total,completed,pending:total-completed};
+                  }
+                  const stats=countNodes(mm.selectedId);
+                  setClaudePromptData({prompt,branchName:selNode.title,stats});
+                }}
+                  style={{width:'100%',padding:'7px 0',
+                    background:'rgba(180,130,255,0.10)',
+                    border:'1px solid rgba(180,130,255,0.25)',
+                    color:'#b080e0',borderRadius:4,cursor:'pointer',
+                    fontSize:11,fontWeight:600,
+                    fontFamily:"'JetBrains Mono',monospace",
+                    transition:'all 0.15s',
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(180,130,255,0.18)';e.currentTarget.style.borderColor='rgba(180,130,255,0.4)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(180,130,255,0.10)';e.currentTarget.style.borderColor='rgba(180,130,255,0.25)';}}>
+                  <span style={{fontSize:13}}>🤖</span> Generate Prompt
+                  <span style={{fontSize:10,color:'#8060a0',fontWeight:400}}>({totalNodes} node{totalNodes===1?'':'s'})</span>
+                </button>
+              </div>
+            );
+          })()}
+
           {/* Color palette + delete at bottom */}
           <div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',flexDirection:'column',gap:6}}>
             <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
@@ -3364,18 +3552,20 @@ function TaskFlow({ session, onSignOut }){
             mm.projects.forEach(p=>{try{localStorage.removeItem('taskflow-mm-'+p.id);}catch(e){} if(session)deleteSB('taskflow-mm-'+p.id);});
             /* Save imported projects and their nodes */
             const projList=importedProjects.map(p=>({id:p.id,name:p.name,color:p.color||'#4a9eff'}));
-            saveLS('taskflow-mm-projects',projList); if(session)saveSB('taskflow-mm-projects',projList);
             importedProjects.forEach(p=>{saveLS('taskflow-mm-'+p.id,p.nodes||[]); if(session)saveSB('taskflow-mm-'+p.id,p.nodes||[]);});
-            /* Reload by switching to first project */
-            window.location.reload();
+            /* Update React state and switch to first imported project */
+            mm.persistProjects(projList);
+            mm.switchProject(projList[0].id);
           }else{
             /* Merge: add imported projects alongside existing, rename on conflict */
             const existingNames=new Set(mm.projects.map(p=>p.name));
             const newProjects=[...mm.projects];
+            let lastNewId=null;
             importedProjects.forEach(ip=>{
               let name=ip.name;
               if(existingNames.has(name)){let i=2;while(existingNames.has(name+' ('+i+')'))i++;name=name+' ('+i+')';}
               const newId=uuid();
+              lastNewId=newId;
               const nodeIdMap={};
               const nodes=(ip.nodes||[]).map(n=>{const nid=uuid();nodeIdMap[n.id]=nid;return{...n,id:nid};});
               nodes.forEach(n=>{
@@ -3386,10 +3576,17 @@ function TaskFlow({ session, onSignOut }){
               existingNames.add(name);
               saveLS('taskflow-mm-'+newId,nodes); if(session)saveSB('taskflow-mm-'+newId,nodes);
             });
-            saveLS('taskflow-mm-projects',newProjects); if(session)saveSB('taskflow-mm-projects',newProjects);
-            window.location.reload();
+            /* Update React state and switch to first imported project */
+            mm.persistProjects(newProjects);
+            if(lastNewId) mm.switchProject(lastNewId);
           }
         }}
+      />}
+      {claudePromptData&&<ClaudePromptModal
+        onClose={()=>setClaudePromptData(null)}
+        prompt={claudePromptData.prompt}
+        branchName={claudePromptData.branchName}
+        stats={claudePromptData.stats}
       />}
     </div>
   );
