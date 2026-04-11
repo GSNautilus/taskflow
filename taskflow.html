@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;width:100%;overflow:hidden}
@@ -27,6 +28,59 @@ input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
 <div id="root"></div>
 <script type="text/babel">
 const{useState,useEffect,useCallback,useRef,useMemo}=React;
+
+/* ══════════════════════════════════════════
+   ── Supabase Configuration ──
+   ══════════════════════════════════════════ */
+const SUPABASE_URL = 'https://ixwpmtxssbdqqevejima.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_VFsG64zwQqH8JOy9ZnOpDQ_WBjiGs3G';
+
+const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+const supabase = _sbConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+/* ── Cloud persistence helpers ── */
+async function loadSB(key) {
+  if (!supabase) return null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase.from('user_store').select('value').eq('user_id', user.id).eq('key', key).maybeSingle();
+    if (error) throw error;
+    return data ? data.value : null;
+  } catch (e) { console.warn('[SB] loadSB error:', e.message); return null; }
+}
+
+async function saveSB(key, value) {
+  if (!supabase) return false;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { error } = await supabase.from('user_store').upsert(
+      { user_id: user.id, key, value, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,key' }
+    );
+    if (error) throw error;
+    return true;
+  } catch (e) { console.warn('[SB] saveSB error:', e.message); return false; }
+}
+
+async function deleteSB(key) {
+  if (!supabase) return false;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { error } = await supabase.from('user_store').delete().eq('user_id', user.id).eq('key', key);
+    if (error) throw error;
+    return true;
+  } catch (e) { console.warn('[SB] deleteSB error:', e.message); return false; }
+}
+
+/* ── Debounced save queue — batches rapid saves so Supabase isn't hammered ── */
+const _saveTimers = {};
+function debouncedSaveSB(key, value, delay = 800) {
+  clearTimeout(_saveTimers[key]);
+  _saveTimers[key] = setTimeout(() => saveSB(key, value), delay);
+}
 
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);
 const now=()=>new Date().toISOString();
@@ -1117,7 +1171,7 @@ function MindmapNodeEditor({ node, position, onSave, onCancel }) {
 const MM_PROJECTS_KEY='taskflow-mm-projects';
 const MM_DATA_PREFIX='taskflow-mm-';
 
-function useMindmap() {
+function useMindmap(sbSession) {
   const [projects, setProjects] = useState(() => {
     const stored = loadLS(MM_PROJECTS_KEY, null);
     if (stored && Array.isArray(stored) && stored.length > 0) return stored;
@@ -1147,8 +1201,8 @@ function useMindmap() {
   const [defaultNodeColor, setDefaultNodeColor] = useState('#4a9eff');
 
   const rootId = useMemo(() => nodes.find(n => !n.parentId)?.id || null, [nodes]);
-  const persistProjects = useCallback(pp => { setProjects(pp); saveLS(MM_PROJECTS_KEY, pp); }, []);
-  const persistNodes = useCallback((nn, pid) => { setNodes(nn); saveLS(MM_DATA_PREFIX + (pid || activeProjectId), nn); }, [activeProjectId]);
+  const persistProjects = useCallback(pp => { setProjects(pp); saveLS(MM_PROJECTS_KEY, pp); if(sbSession) debouncedSaveSB(MM_PROJECTS_KEY, pp); }, [sbSession]);
+  const persistNodes = useCallback((nn, pid) => { const key = MM_DATA_PREFIX + (pid || activeProjectId); setNodes(nn); saveLS(key, nn); if(sbSession) debouncedSaveSB(key, nn); }, [activeProjectId, sbSession]);
 
   const switchProject = useCallback(pid => {
     setActiveProjectId(pid);
@@ -1160,10 +1214,12 @@ function useMindmap() {
     const pid = uuid(), rid = uuid();
     const np = [...projects, { id:pid, name, color:'#4a9eff' }];
     persistProjects(np);
-    saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:name, color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }]);
+    const initNodes = [{ id:rid, parentId:null, title:name, color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }];
+    saveLS(MM_DATA_PREFIX + pid, initNodes);
+    if(sbSession) debouncedSaveSB(MM_DATA_PREFIX + pid, initNodes);
     switchProject(pid);
     return pid;
-  }, [projects, persistProjects, switchProject]);
+  }, [projects, persistProjects, switchProject, sbSession]);
 
   const renameProject = useCallback((pid, name) => {
     persistProjects(projects.map(p => p.id === pid ? { ...p, name } : p));
@@ -1174,6 +1230,7 @@ function useMindmap() {
     const np = projects.filter(p => p.id !== pid);
     persistProjects(np);
     try { localStorage.removeItem(MM_DATA_PREFIX + pid); } catch(e) {}
+    if(sbSession) deleteSB(MM_DATA_PREFIX + pid);
     if (activeProjectId === pid) switchProject(np[0].id);
   }, [projects, activeProjectId, persistProjects, switchProject]);
 
@@ -2471,9 +2528,10 @@ function K({children}){
 /* ══════════════════════════════════════════
    ── Main App ──
    ══════════════════════════════════════════ */
-function TaskFlow(){
+function TaskFlow({ session, onSignOut }){
   const[tasks,setTasks]=useState(()=>loadLS(TASK_KEY,[]));
   const[categories,setCategories]=useState(()=>loadLS(CAT_KEY,DEFAULT_CATEGORIES));
+  const[cloudStatus,setCloudStatus]=useState(session?'syncing':'offline'); // 'synced'|'syncing'|'offline'|'error'
   const[view,setView]=useState('active');
   const[selId,setSelId]=useState(null);
   const[input,setInput]=useState('');
@@ -2486,14 +2544,14 @@ function TaskFlow(){
   const[showMmImportExport,setShowMmImportExport]=useState(false);
   const[defaultEventColor,setDefaultEventColor]=useState('#4a9eff');
   const[mainTab,setMainTabRaw]=useState(()=>loadLS('taskflow-mainTab')||'tasks');
-  const setMainTab=useCallback(t=>{setMainTabRaw(t);saveLS('taskflow-mainTab',t);},[]);
+  const setMainTab=useCallback(t=>{setMainTabRaw(t);saveLS('taskflow-mainTab',t);if(session)debouncedSaveSB('taskflow-mainTab',t);},[session]);
   const[calMode,setCalMode]=useState('month');
   const[calDate,setCalDate]=useState(()=>new Date());
   const[recDropOpen,setRecDropOpen]=useState(false);
   const inputRef=useRef(null);
 
   // Mindmap state — lifted here so sidebar can access projects/tree
-  const mm=useMindmap();
+  const mm=useMindmap(session);
   const[mmSidebarExpanded,setMmSidebarExpanded]=useState(()=>new Set(mm.rootId?[mm.rootId]:[]));
   const[addingProject,setAddingProject]=useState(false);
   const[renamingProjectId,setRenamingProjectId]=useState(null);
@@ -2530,9 +2588,70 @@ function TaskFlow(){
     if(c1||c2){setTasks(p2);saveLS(TASK_KEY,p2);}
   },[]);
 
-  // Persist
-  useEffect(()=>{saveLS(TASK_KEY,tasks);},[tasks]);
-  useEffect(()=>{saveLS(CAT_KEY,categories);},[categories]);
+  // ── Supabase: initial sync on mount ──
+  const sbSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!session || sbSyncedRef.current) return;
+    sbSyncedRef.current = true;
+    setCloudStatus('syncing');
+    (async () => {
+      try {
+        // Load tasks from Supabase
+        const sbTasks = await loadSB(TASK_KEY);
+        if (sbTasks && Array.isArray(sbTasks) && sbTasks.length > 0) {
+          setTasks(sbTasks);
+        } else if (tasks.length > 0) {
+          // First-time migration: push localStorage tasks to Supabase
+          await saveSB(TASK_KEY, tasks);
+        }
+
+        // Load categories
+        const sbCats = await loadSB(CAT_KEY);
+        if (sbCats && typeof sbCats === 'object' && Object.keys(sbCats).length > 0) {
+          setCategories(sbCats);
+        } else {
+          await saveSB(CAT_KEY, categories);
+        }
+
+        // Load mainTab
+        const sbTab = await loadSB('taskflow-mainTab');
+        if (sbTab) { setMainTabRaw(sbTab); saveLS('taskflow-mainTab', sbTab); }
+
+        // Load mindmap projects
+        const sbProjects = await loadSB(MM_PROJECTS_KEY);
+        if (sbProjects && Array.isArray(sbProjects) && sbProjects.length > 0) {
+          saveLS(MM_PROJECTS_KEY, sbProjects);
+          // Also load nodes for each project
+          for (const p of sbProjects) {
+            const sbNodes = await loadSB(MM_DATA_PREFIX + p.id);
+            if (sbNodes) saveLS(MM_DATA_PREFIX + p.id, sbNodes);
+          }
+          // Reload mindmap from updated localStorage
+          window.__sbMindmapSynced = true;
+          mm.switchProject(sbProjects[0].id);
+        } else {
+          // Migrate mindmap to Supabase
+          const localProjects = loadLS(MM_PROJECTS_KEY, []);
+          if (localProjects.length > 0) {
+            await saveSB(MM_PROJECTS_KEY, localProjects);
+            for (const p of localProjects) {
+              const localNodes = loadLS(MM_DATA_PREFIX + p.id, []);
+              if (localNodes.length > 0) await saveSB(MM_DATA_PREFIX + p.id, localNodes);
+            }
+          }
+        }
+
+        setCloudStatus('synced');
+      } catch (e) {
+        console.error('[SB] Initial sync failed:', e);
+        setCloudStatus('error');
+      }
+    })();
+  }, [session]);
+
+  // Persist — localStorage always, Supabase when connected
+  useEffect(()=>{saveLS(TASK_KEY,tasks); if(session) debouncedSaveSB(TASK_KEY, tasks);},[tasks]);
+  useEffect(()=>{saveLS(CAT_KEY,categories); if(session) debouncedSaveSB(CAT_KEY, categories);},[categories]);
 
   // Periodic auto-return check
   useEffect(()=>{
@@ -2994,6 +3113,27 @@ function TaskFlow(){
                 fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}>Delete event</button>
           </div>
         </>}
+
+        {/* ── Cloud status & account ── */}
+        {sidebarOpen&&<div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:8}}>
+          {(()=>{
+            const dot={width:7,height:7,borderRadius:'50%',flexShrink:0};
+            if(cloudStatus==='synced')return <><span style={{...dot,background:'#6ecf6e'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Synced</span></>;
+            if(cloudStatus==='syncing')return <><span style={{...dot,background:'#f0c040'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Syncing...</span></>;
+            if(cloudStatus==='error')return <><span style={{...dot,background:'#ff6b6b'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Sync error</span></>;
+            return <><span style={{...dot,background:'#555'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Local only</span></>;
+          })()}
+          {onSignOut&&<button onClick={onSignOut} title="Sign out"
+            style={{border:'none',background:'transparent',color:'#4a4a4a',cursor:'pointer',fontSize:13,padding:'2px 4px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.color='#888'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>↪</button>}
+        </div>}
+        {!sidebarOpen&&<div style={{padding:'8px 0',borderTop:'1px solid #2a2a2a',display:'flex',justifyContent:'center'}}>
+          {(()=>{
+            const dot={width:7,height:7,borderRadius:'50%'};
+            const c=cloudStatus==='synced'?'#6ecf6e':cloudStatus==='syncing'?'#f0c040':cloudStatus==='error'?'#ff6b6b':'#555';
+            return <span title={cloudStatus==='synced'?'Synced':cloudStatus==='syncing'?'Syncing...':cloudStatus==='error'?'Sync error':'Local only'} style={{...dot,background:c}}/>;
+          })()}
+        </div>}
       </div>
 
       {/* ── Main Content ── */}
@@ -3152,11 +3292,11 @@ function TaskFlow(){
         onImport={(importedProjects,mode)=>{
           if(mode==='replace'){
             /* Remove all existing project data */
-            mm.projects.forEach(p=>{try{localStorage.removeItem('taskflow-mm-'+p.id);}catch(e){}});
+            mm.projects.forEach(p=>{try{localStorage.removeItem('taskflow-mm-'+p.id);}catch(e){} if(session)deleteSB('taskflow-mm-'+p.id);});
             /* Save imported projects and their nodes */
             const projList=importedProjects.map(p=>({id:p.id,name:p.name,color:p.color||'#4a9eff'}));
-            saveLS('taskflow-mm-projects',projList);
-            importedProjects.forEach(p=>{saveLS('taskflow-mm-'+p.id,p.nodes||[]);});
+            saveLS('taskflow-mm-projects',projList); if(session)saveSB('taskflow-mm-projects',projList);
+            importedProjects.forEach(p=>{saveLS('taskflow-mm-'+p.id,p.nodes||[]); if(session)saveSB('taskflow-mm-'+p.id,p.nodes||[]);});
             /* Reload by switching to first project */
             window.location.reload();
           }else{
@@ -3175,9 +3315,9 @@ function TaskFlow(){
               });
               newProjects.push({id:newId,name,color:ip.color||'#4a9eff'});
               existingNames.add(name);
-              saveLS('taskflow-mm-'+newId,nodes);
+              saveLS('taskflow-mm-'+newId,nodes); if(session)saveSB('taskflow-mm-'+newId,nodes);
             });
-            saveLS('taskflow-mm-projects',newProjects);
+            saveLS('taskflow-mm-projects',newProjects); if(session)saveSB('taskflow-mm-projects',newProjects);
             window.location.reload();
           }
         }}
@@ -3186,7 +3326,82 @@ function TaskFlow(){
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<TaskFlow/>);
+/* ══════════════════════════════════════════
+   ── Auth Gate & Connection Indicator ──
+   ══════════════════════════════════════════ */
+function AuthGate() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(!!supabase);
+  const [authError, setAuthError] = useState(null);
+
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return; }
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      setLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.href.split('?')[0].split('#')[0] }
+    });
+    if (error) setAuthError(error.message);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
+  if (loading) {
+    return React.createElement('div', {
+      style: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', color: '#6a7090', fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }
+    }, 'Loading...');
+  }
+
+  // No Supabase configured — just render the app directly
+  if (!supabase) return React.createElement(TaskFlow, { session: null, onSignOut: null });
+
+  // Not signed in — show sign-in overlay
+  if (!session) {
+    return React.createElement('div', { style: { height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', fontFamily: "'IBM Plex Sans', sans-serif", gap: 24 } },
+      React.createElement('div', { style: { fontSize: 32, fontWeight: 700, color: '#d0d4e0', letterSpacing: '-0.5px' } }, 'TaskFlow'),
+      React.createElement('div', { style: { fontSize: 14, color: '#6a7090', marginBottom: 8 } }, 'Sign in to sync your tasks across devices'),
+      React.createElement('button', {
+        onClick: handleGoogleSignIn,
+        style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 28px', background: '#242424', border: '1px solid #333', borderRadius: 10, color: '#d0d4e0', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: "'IBM Plex Sans', sans-serif", transition: 'border-color 0.15s' },
+        onMouseEnter: e => e.currentTarget.style.borderColor = '#4a9eff',
+        onMouseLeave: e => e.currentTarget.style.borderColor = '#333'
+      },
+        React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24' },
+          React.createElement('path', { d: 'M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z', fill: '#4285F4' }),
+          React.createElement('path', { d: 'M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z', fill: '#34A853' }),
+          React.createElement('path', { d: 'M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z', fill: '#FBBC05' }),
+          React.createElement('path', { d: 'M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z', fill: '#EA4335' })
+        ),
+        'Sign in with Google'
+      ),
+      authError && React.createElement('div', { style: { color: '#ff6b6b', fontSize: 13, marginTop: 4 } }, authError),
+      React.createElement('button', {
+        onClick: () => { /* skip auth, use localStorage only */ setSession({ skip: true }); },
+        style: { background: 'transparent', border: 'none', color: '#555', fontSize: 13, cursor: 'pointer', marginTop: 4, fontFamily: "'IBM Plex Sans', sans-serif" },
+        onMouseEnter: e => e.currentTarget.style.color = '#888',
+        onMouseLeave: e => e.currentTarget.style.color = '#555'
+      }, 'Continue offline with local storage')
+    );
+  }
+
+  return React.createElement(TaskFlow, { session: session.skip ? null : session, onSignOut: session.skip ? null : handleSignOut });
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate/>);
 </script>
 </body>
 </html>
