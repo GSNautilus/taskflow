@@ -83,6 +83,78 @@ function debouncedSaveSB(key, value, delay = 800) {
   _saveTimers[key] = setTimeout(() => saveSB(key, value), delay);
 }
 
+/* ── Backup helpers — snapshot all data on login, keep last 10 ── */
+const BACKUP_INDEX_KEY = 'taskflow-backup-index';
+const BACKUP_DATA_PREFIX = 'taskflow-backup-';
+const MAX_BACKUPS = 10;
+
+async function createLoginBackup() {
+  if (!supabase) return false;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // Gather current cloud state
+    const tasks = await loadSB(TASK_KEY);
+    const cats = await loadSB(CAT_KEY);
+    const mainTab = await loadSB('taskflow-mainTab');
+    const mmProjects = await loadSB(MM_PROJECTS_KEY);
+    const mmNodes = {};
+    if (mmProjects && Array.isArray(mmProjects)) {
+      for (const p of mmProjects) {
+        const nodes = await loadSB(MM_DATA_PREFIX + p.id);
+        if (nodes) mmNodes[p.id] = nodes;
+      }
+    }
+
+    const snapshot = { tasks, cats, mainTab, mmProjects, mmNodes, ts: new Date().toISOString() };
+    const backupKey = BACKUP_DATA_PREFIX + snapshot.ts;
+
+    // Save snapshot
+    await saveSB(backupKey, snapshot);
+
+    // Update index — keep last MAX_BACKUPS
+    let index = (await loadSB(BACKUP_INDEX_KEY)) || [];
+    index.unshift({ ts: snapshot.ts, key: backupKey, taskCount: (tasks || []).length, projectCount: (mmProjects || []).length });
+    // Prune old backups
+    while (index.length > MAX_BACKUPS) {
+      const old = index.pop();
+      await deleteSB(old.key);
+    }
+    await saveSB(BACKUP_INDEX_KEY, index);
+    console.log('[Backup] Login snapshot created:', snapshot.ts);
+    return true;
+  } catch (e) { console.warn('[Backup] Failed to create backup:', e.message); return false; }
+}
+
+async function loadBackupIndex() {
+  return (await loadSB(BACKUP_INDEX_KEY)) || [];
+}
+
+async function restoreFromBackup(backupKey) {
+  if (!supabase) return false;
+  try {
+    const snapshot = await loadSB(backupKey);
+    if (!snapshot) return false;
+
+    // Restore tasks
+    if (snapshot.tasks) await saveSB(TASK_KEY, snapshot.tasks);
+    if (snapshot.cats) await saveSB(CAT_KEY, snapshot.cats);
+    if (snapshot.mainTab) await saveSB('taskflow-mainTab', snapshot.mainTab);
+
+    // Restore mindmap projects + nodes
+    if (snapshot.mmProjects) {
+      await saveSB(MM_PROJECTS_KEY, snapshot.mmProjects);
+      if (snapshot.mmNodes) {
+        for (const [pid, nodes] of Object.entries(snapshot.mmNodes)) {
+          await saveSB(MM_DATA_PREFIX + pid, nodes);
+        }
+      }
+    }
+    return snapshot;
+  } catch (e) { console.warn('[Backup] Restore failed:', e.message); return false; }
+}
+
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);
 const now=()=>new Date().toISOString();
 const msNow=()=>Date.now();
@@ -138,7 +210,9 @@ const TASK_KEY='taskflow-tasks';
 const CAT_KEY='taskflow-cats';
 
 function loadLS(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
-function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.error(e);}}
+/* saveLS — returns true on success, false on failure (e.g. QuotaExceededError) */
+let _lsWarningTimer=null;
+function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){console.error('[saveLS] FAILED for key:',k,e);if(!_lsWarningTimer){_lsWarningTimer=setTimeout(()=>{_lsWarningTimer=null;},10000);window.__lsSaveError={key:k,error:e.name,message:e.message,ts:Date.now()};window.dispatchEvent(new CustomEvent('ls-save-error',{detail:{key:k,error:e.name}}));}return false;}}
 
 function fmt(iso){
   if(!iso)return'';
@@ -1453,11 +1527,23 @@ function useMindmap(sbSession) {
   const [selectedId, setSelectedId] = useState(null);
   const [defaultNodeColor, setDefaultNodeColor] = useState('#4a9eff');
 
+  // Ref tracks activeProjectId without stale closures — always current
+  const activeProjectIdRef = useRef(activeProjectId);
+  useEffect(() => { activeProjectIdRef.current = activeProjectId; }, [activeProjectId]);
+
   const rootId = useMemo(() => nodes.find(n => !n.parentId)?.id || null, [nodes]);
   const persistProjects = useCallback(pp => { setProjects(pp); saveLS(MM_PROJECTS_KEY, pp); if(sbSession) debouncedSaveSB(MM_PROJECTS_KEY, pp); }, [sbSession]);
-  const persistNodes = useCallback((nn, pid) => { const key = MM_DATA_PREFIX + (pid || activeProjectId); setNodes(nn); saveLS(key, nn); if(sbSession) debouncedSaveSB(key, nn); }, [activeProjectId, sbSession]);
+  const persistNodes = useCallback((nn, pid) => { const key = MM_DATA_PREFIX + (pid || activeProjectIdRef.current); setNodes(nn); saveLS(key, nn); if(sbSession) debouncedSaveSB(key, nn); }, [sbSession]);
 
   const switchProject = useCallback(pid => {
+    // Save current nodes to localStorage before switching (safeguard against unsaved in-memory state)
+    const currentPid = activeProjectIdRef.current;
+    if (currentPid) {
+      const currentKey = MM_DATA_PREFIX + currentPid;
+      // Read current nodes from state via a sync setter to get latest value
+      setNodes(prev => { saveLS(currentKey, prev); return prev; });
+    }
+    activeProjectIdRef.current = pid;
     setActiveProjectId(pid);
     setNodes(loadLS(MM_DATA_PREFIX + pid, []).map(n => ({ notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null, ...n })));
     setSelectedId(null);
@@ -3022,6 +3108,10 @@ function TaskFlow({ session, onSignOut }){
   const[showMmImportExport,setShowMmImportExport]=useState(false);
   const[claudePromptData,setClaudePromptData]=useState(null);
   const[defaultEventColor,setDefaultEventColor]=useState('#4a9eff');
+  const[showBackups,setShowBackups]=useState(false);
+  const[backupList,setBackupList]=useState([]);
+  const[backupLoading,setBackupLoading]=useState(false);
+  const[restoringKey,setRestoringKey]=useState(null);
   const[mainTab,setMainTabRaw]=useState(()=>loadLS('taskflow-mainTab')||'tasks');
   const setMainTab=useCallback(t=>{setMainTabRaw(t);saveLS('taskflow-mainTab',t);if(session)debouncedSaveSB('taskflow-mainTab',t);},[session]);
   const[calMode,setCalMode]=useState('month');
@@ -3036,6 +3126,14 @@ function TaskFlow({ session, onSignOut }){
   const[renamingProjectId,setRenamingProjectId]=useState(null);
   const[renameProjectName,setRenameProjectName]=useState('');
   const[newProjectName,setNewProjectName]=useState('');
+  // localStorage save error warning
+  const[lsError,setLsError]=useState(null);
+  useEffect(()=>{
+    const handler=e=>{setLsError('Storage full — changes may not be saving. Export your data as a backup.');setTimeout(()=>setLsError(null),8000);};
+    window.addEventListener('ls-save-error',handler);
+    return ()=>window.removeEventListener('ls-save-error',handler);
+  },[]);
+
   // Keep root expanded when it changes
   useEffect(()=>{if(mm.rootId)setMmSidebarExpanded(prev=>{if(prev.has(mm.rootId))return prev;const n=new Set(prev);n.add(mm.rootId);return n;});},[mm.rootId]);
   const mmExpandAll=useCallback(()=>setMmSidebarExpanded(new Set(mm.nodes.map(n=>n.id))),[mm.nodes]);
@@ -3121,6 +3219,11 @@ function TaskFlow({ session, onSignOut }){
         }
 
         setCloudStatus('synced');
+
+        // Create login backup after successful sync
+        createLoginBackup().then(ok => {
+          if (ok) console.log('[Backup] Login snapshot saved');
+        });
       } catch (e) {
         console.error('[SB] Initial sync failed:', e);
         setCloudStatus('error');
@@ -3304,6 +3407,13 @@ function TaskFlow({ session, onSignOut }){
   return(
     <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
 
+      {/* localStorage warning banner */}
+      {lsError&&<div style={{position:'fixed',top:0,left:0,right:0,zIndex:9999,background:'#4a1a1a',borderBottom:'2px solid #ff6b6b',padding:'10px 16px',display:'flex',alignItems:'center',gap:8,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:'#ff9a9a',animation:'fadeIn 0.3s'}}>
+        <span style={{fontSize:16}}>⚠</span>
+        <span style={{flex:1}}>{lsError}</span>
+        <button onClick={()=>setLsError(null)} style={{border:'none',background:'transparent',color:'#ff6b6b',cursor:'pointer',fontSize:16,padding:'0 4px'}}>×</button>
+      </div>}
+
       {/* ── Sidebar ── */}
       <div style={{width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'#161616',display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',borderRight:'1px solid #2a2a2a'}}>
 
@@ -3313,7 +3423,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.6</span>
+              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.7</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -3665,7 +3775,7 @@ function TaskFlow({ session, onSignOut }){
         </>}
 
         {/* ── Cloud status & account ── */}
-        {sidebarOpen&&<div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:8}}>
+        {sidebarOpen&&<div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:8,position:'relative'}}>
           {(()=>{
             const dot={width:7,height:7,borderRadius:'50%',flexShrink:0};
             if(cloudStatus==='synced')return <><span style={{...dot,background:'#6ecf6e'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Synced</span></>;
@@ -3673,9 +3783,58 @@ function TaskFlow({ session, onSignOut }){
             if(cloudStatus==='error')return <><span style={{...dot,background:'#ff6b6b'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Sync error</span></>;
             return <><span style={{...dot,background:'#555'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Local only</span></>;
           })()}
+          {session&&<button onClick={async()=>{
+            if(showBackups){setShowBackups(false);return;}
+            setBackupLoading(true);setShowBackups(true);
+            const idx=await loadBackupIndex();
+            setBackupList(idx);setBackupLoading(false);
+          }} title="Backups"
+            style={{border:'none',background:showBackups?'#2a2a2a':'transparent',color:showBackups?'#d0d4e0':'#4a4a4a',cursor:'pointer',fontSize:12,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',borderRadius:3}}
+            onMouseEnter={e=>{if(!showBackups)e.currentTarget.style.color='#888';}} onMouseLeave={e=>{if(!showBackups)e.currentTarget.style.color='#4a4a4a';}}>⟲</button>}
           {onSignOut&&<button onClick={onSignOut} title="Sign out"
             style={{border:'none',background:'transparent',color:'#4a4a4a',cursor:'pointer',fontSize:13,padding:'2px 4px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
             onMouseEnter={e=>e.currentTarget.style.color='#888'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>↪</button>}
+
+          {/* ── Backup dropdown ── */}
+          {showBackups&&<div style={{position:'absolute',bottom:'100%',left:0,right:0,marginBottom:4,background:'#1a1a1e',border:'1px solid #2a2a2a',borderRadius:8,padding:'8px 0',maxHeight:320,overflowY:'auto',zIndex:999,boxShadow:'0 -4px 20px rgba(0,0,0,0.5)'}}>
+            <div style={{padding:'4px 12px 8px',fontSize:11,fontWeight:600,color:'#808080',fontFamily:"'JetBrains Mono',monospace",borderBottom:'1px solid #2a2a2a',marginBottom:4}}>Login Backups</div>
+            {backupLoading&&<div style={{padding:'12px',textAlign:'center',fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>Loading...</div>}
+            {!backupLoading&&backupList.length===0&&<div style={{padding:'12px',textAlign:'center',fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>No backups yet</div>}
+            {!backupLoading&&backupList.map((b,i)=>{
+              const d=new Date(b.ts);
+              const dateStr=d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+              const timeStr=d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+              const isRestoring=restoringKey===b.key;
+              return <div key={b.key} style={{padding:'6px 12px',cursor:isRestoring?'wait':'pointer',transition:'background 0.1s',display:'flex',alignItems:'center',gap:8}}
+                onMouseEnter={e=>e.currentTarget.style.background='#242428'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                onClick={async()=>{
+                  if(isRestoring)return;
+                  if(!confirm('Restore from '+dateStr+' '+timeStr+'?\n\nThis will replace all your current tasks, categories, and mindmap data with this snapshot.'))return;
+                  setRestoringKey(b.key);
+                  const snapshot=await restoreFromBackup(b.key);
+                  if(snapshot){
+                    // Update React state from restored snapshot
+                    if(snapshot.tasks)setTasks(snapshot.tasks);
+                    if(snapshot.cats)setCategories(snapshot.cats);
+                    if(snapshot.mainTab){setMainTabRaw(snapshot.mainTab);saveLS('taskflow-mainTab',snapshot.mainTab);}
+                    if(snapshot.mmProjects){
+                      saveLS(MM_PROJECTS_KEY,snapshot.mmProjects);
+                      if(snapshot.mmNodes){for(const[pid,nodes]of Object.entries(snapshot.mmNodes)){saveLS(MM_DATA_PREFIX+pid,nodes);}}
+                      window.__sbMindmapSynced=true;
+                      mm.switchProject(snapshot.mmProjects[0].id);
+                    }
+                    setShowBackups(false);
+                  }else{alert('Restore failed — see console for details.');}
+                  setRestoringKey(null);
+                }}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:500}}>{dateStr} <span style={{color:'#606060',fontWeight:400}}>{timeStr}</span></div>
+                  <div style={{fontSize:10,color:'#505060',fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>{b.taskCount||0} tasks · {b.projectCount||0} projects</div>
+                </div>
+                {isRestoring&&<span style={{fontSize:10,color:'#f0c040',fontFamily:"'JetBrains Mono',monospace"}}>Restoring...</span>}
+              </div>;
+            })}
+          </div>}
         </div>}
         {!sidebarOpen&&<div style={{padding:'8px 0',borderTop:'1px solid #2a2a2a',display:'flex',justifyContent:'center'}}>
           {(()=>{
