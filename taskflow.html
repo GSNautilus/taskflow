@@ -1527,21 +1527,31 @@ function useMindmap(sbSession) {
   const [selectedId, setSelectedId] = useState(null);
   const [defaultNodeColor, setDefaultNodeColor] = useState('#4a9eff');
 
-  // Ref tracks activeProjectId without stale closures — always current
+  // Refs track current values without stale closures — always up to date
   const activeProjectIdRef = useRef(activeProjectId);
+  const nodesRef = useRef(nodes);
   useEffect(() => { activeProjectIdRef.current = activeProjectId; }, [activeProjectId]);
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
 
   const rootId = useMemo(() => nodes.find(n => !n.parentId)?.id || null, [nodes]);
   const persistProjects = useCallback(pp => { setProjects(pp); saveLS(MM_PROJECTS_KEY, pp); if(sbSession) debouncedSaveSB(MM_PROJECTS_KEY, pp); }, [sbSession]);
-  const persistNodes = useCallback((nn, pid) => { const key = MM_DATA_PREFIX + (pid || activeProjectIdRef.current); setNodes(nn); saveLS(key, nn); if(sbSession) debouncedSaveSB(key, nn); }, [sbSession]);
+  const persistNodes = useCallback((nn, pid) => {
+    const key = MM_DATA_PREFIX + (pid || activeProjectIdRef.current);
+    setNodes(nn);
+    nodesRef.current = nn;
+    saveLS(key, nn);
+    if(sbSession) debouncedSaveSB(key, nn);
+  }, [sbSession]);
 
   const switchProject = useCallback(pid => {
-    // Save current nodes to localStorage before switching (safeguard against unsaved in-memory state)
     const currentPid = activeProjectIdRef.current;
-    if (currentPid) {
-      const currentKey = MM_DATA_PREFIX + currentPid;
-      // Read current nodes from state via a sync setter to get latest value
-      setNodes(prev => { saveLS(currentKey, prev); return prev; });
+    // No-op if already on this project — avoids reloading from localStorage
+    // which could have been overwritten by Supabase sync with stale data
+    if (pid === currentPid) return;
+    // Save current in-memory nodes SYNCHRONOUSLY before loading new project
+    // (nodesRef is always current — no React batching timing issues)
+    if (currentPid && nodesRef.current && nodesRef.current.length > 0) {
+      saveLS(MM_DATA_PREFIX + currentPid, nodesRef.current);
     }
     activeProjectIdRef.current = pid;
     setActiveProjectId(pid);
@@ -3194,21 +3204,42 @@ function TaskFlow({ session, onSignOut }){
         const sbTab = await loadSB('taskflow-mainTab');
         if (sbTab) { setMainTabRaw(sbTab); saveLS('taskflow-mainTab', sbTab); }
 
-        // Load mindmap projects
+        // Load mindmap projects — merge local + cloud, prefer whichever has more data
         const sbProjects = await loadSB(MM_PROJECTS_KEY);
+        const localProjects = loadLS(MM_PROJECTS_KEY, []);
         if (sbProjects && Array.isArray(sbProjects) && sbProjects.length > 0) {
-          saveLS(MM_PROJECTS_KEY, sbProjects);
-          // Also load nodes for each project
-          for (const p of sbProjects) {
+          // Merge project lists: keep all projects from both sources
+          const mergedProjectMap = new Map();
+          localProjects.forEach(p => mergedProjectMap.set(p.id, p));
+          sbProjects.forEach(p => { if (!mergedProjectMap.has(p.id)) mergedProjectMap.set(p.id, p); });
+          const mergedProjects = [...mergedProjectMap.values()];
+          saveLS(MM_PROJECTS_KEY, mergedProjects);
+          await saveSB(MM_PROJECTS_KEY, mergedProjects);
+          // For each project, keep whichever version has more nodes (local or cloud)
+          for (const p of mergedProjects) {
             const sbNodes = await loadSB(MM_DATA_PREFIX + p.id);
-            if (sbNodes) saveLS(MM_DATA_PREFIX + p.id, sbNodes);
+            const localNodes = loadLS(MM_DATA_PREFIX + p.id, []);
+            const sbCount = Array.isArray(sbNodes) ? sbNodes.length : 0;
+            const localCount = Array.isArray(localNodes) ? localNodes.length : 0;
+            if (sbCount > localCount) {
+              // Cloud has more — update local
+              saveLS(MM_DATA_PREFIX + p.id, sbNodes);
+            } else if (localCount > sbCount) {
+              // Local has more — update cloud
+              await saveSB(MM_DATA_PREFIX + p.id, localNodes);
+            }
+            // If equal count, keep local (it's more likely to be current)
           }
-          // Reload mindmap from updated localStorage
           window.__sbMindmapSynced = true;
-          mm.switchProject(sbProjects[0].id);
+          // Only switch if the current active project isn't in the merged list
+          const currentActive = mm.activeProjectId;
+          if (currentActive && !mergedProjects.find(p => p.id === currentActive)) {
+            mm.switchProject(mergedProjects[0].id);
+          }
+          // Update projects list in React state without switching
+          mm.persistProjects(mergedProjects);
         } else {
-          // Migrate mindmap to Supabase
-          const localProjects = loadLS(MM_PROJECTS_KEY, []);
+          // No cloud data — migrate local to Supabase
           if (localProjects.length > 0) {
             await saveSB(MM_PROJECTS_KEY, localProjects);
             for (const p of localProjects) {
@@ -3423,7 +3454,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.7</span>
+              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.8</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
