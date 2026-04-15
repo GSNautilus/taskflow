@@ -955,14 +955,14 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
 
   const handleStatusClick=(e)=>{
     e.stopPropagation();
-    if(dblClickTimer.current){clearTimeout(dblClickTimer.current);dblClickTimer.current=null;onChangeStatus(task.id,'x');return;}
+    if(dblClickTimer.current){clearTimeout(dblClickTimer.current);dblClickTimer.current=null;onChangeStatus(task.id,task.status==='x'?'':'x');return;}
     dblClickTimer.current=setTimeout(()=>{dblClickTimer.current=null;setStatusOpen(!statusOpen);},250);
   };
 
   return(
     <div draggable={!editing}
       onDragStart={e=>onDragStart(e,idx)} onDragOver={e=>{e.preventDefault();onDragOver(e,idx);}} onDrop={e=>onDrop(e,idx)}
-      onClick={()=>onSelect(task.id)} onDoubleClick={()=>onChangeStatus(task.id,'x')}
+      onClick={()=>onSelect(task.id)} onDoubleClick={()=>onChangeStatus(task.id,task.status==='x'?'':'x')}
       style={{
         display:'flex',alignItems:'center',gap:10,padding:'4px 12px',paddingLeft:12+depth*28,
         background:isSelected?'#2a2f3a':(task.status?s.rowBg:'#1a1a1a'),
@@ -1022,6 +1022,18 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         )}
       </div>
 
+      {/* Add subtask button (visible when selected, depth < 3) */}
+      {isSelected&&depth<3&&(
+        <button onClick={e=>{e.stopPropagation();onAddSubtask(task.id);}}
+          style={{border:'1px dashed #4a9eff44',borderRadius:5,padding:'2px 8px',fontSize:11,
+            color:'#4a9eff',background:'transparent',cursor:'pointer',flexShrink:0,
+            fontFamily:"'JetBrains Mono',monospace",fontWeight:600,transition:'all 0.15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(74,158,255,0.12)';e.currentTarget.style.borderColor='#4a9eff88';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='#4a9eff44';}}>
+          + subtask
+        </button>
+      )}
+
       {/* Auto-return countdown + recurrence indicator */}
       <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
         {task.recurrence&&<span style={{fontSize:12,color:'#888',fontFamily:"'JetBrains Mono',monospace"}}>🔁</span>}
@@ -1068,6 +1080,14 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         </div>
       ):(
         <span style={{fontSize:11,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:100,textAlign:'right'}}>{fmt(task.dateAdded)}</span>
+      )}
+
+      {/* Clear from active (individual dismiss) — shown for checked tasks */}
+      {task.status&&task.status!==''&&task.status!=='u'&&(
+        <button onClick={e=>{e.stopPropagation();onUpdate({...task,activeVisible:false});}}
+          style={{border:'none',background:'transparent',cursor:'pointer',color:'#333',fontSize:14,padding:'0 2px',flexShrink:0,lineHeight:1,transition:'color 0.15s'}}
+          onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='#333'}
+          title="Clear from active">×</button>
       )}
 
     </div>
@@ -1724,9 +1744,9 @@ function useMindmap(sbSession) {
     const parentPos = posMap.get(id);
 
     if (!nd.collapsed && parentPos && descendants.length > 0) {
-      // Collapsing: store each descendant's position relative to parent, clear custom positions
-      // For descendants not in positionedNodes (already hidden by inner collapse),
-      // compute a fallback offset relative to their direct parent chain
+      // Collapsing: store each descendant's position relative to the collapsing parent.
+      // Build a nodeMap for quick lookups when walking ancestor chains.
+      const nodeMap = new Map(nodes.map(n => [n.id, n]));
       persistNodes(nodes.map(n => {
         if (n.id === id) return { ...n, collapsed: true, collapseX: parentPos.x, collapseY: parentPos.y };
         if (descendants.includes(n.id)) {
@@ -1734,23 +1754,62 @@ function useMindmap(sbSession) {
           if (dp) {
             return { ...n, collapseRelX: dp.x - parentPos.x, collapseRelY: dp.y - parentPos.y, customX: null, customY: null };
           }
-          // Node not in layout (hidden by inner collapse) — use its custom position or
-          // walk up to find nearest positioned ancestor and use its offset
+          // Node hidden by inner collapse — reconstruct absolute position by walking
+          // up the parent chain, accumulating collapseRel offsets until we reach a
+          // positioned ancestor, then compute offset relative to the outer parent.
+          let absX = null, absY = null;
           if (n.customX !== null && n.customX !== undefined) {
-            return { ...n, collapseRelX: n.customX - parentPos.x, collapseRelY: (n.customY ?? 0) - parentPos.y, customX: null, customY: null };
+            absX = n.customX; absY = n.customY ?? 0;
+          } else if (n.collapseRelX !== null && n.collapseRelX !== undefined) {
+            // Walk up to find the inner-collapsed parent that has a known position
+            let accX = n.collapseRelX, accY = n.collapseRelY ?? 0;
+            let cur = nodeMap.get(n.parentId);
+            while (cur && cur.id !== id) {
+              const cp = posMap.get(cur.id);
+              if (cp) { absX = cp.x + accX; absY = cp.y + accY; break; }
+              if (cur.collapseX !== null && cur.collapseX !== undefined) { absX = cur.collapseX + accX; absY = (cur.collapseY ?? 0) + accY; break; }
+              if (cur.collapseRelX !== null && cur.collapseRelX !== undefined) { accX += cur.collapseRelX; accY += (cur.collapseRelY ?? 0); }
+              cur = nodeMap.get(cur.parentId);
+            }
           }
-          // Fallback: keep existing collapseRel if it has one, or store 0,0 (will snap to parent on expand)
+          if (absX !== null) {
+            return { ...n, collapseRelX: absX - parentPos.x, collapseRelY: absY - parentPos.y, customX: null, customY: null };
+          }
+          // True fallback: keep existing collapseRel if present, else 0,0
           if (n.collapseRelX !== null && n.collapseRelX !== undefined) return n;
           return { ...n, collapseRelX: 0, collapseRelY: 0, customX: null, customY: null };
         }
         return n;
       }));
     } else if (nd.collapsed && parentPos && descendants.length > 0) {
-      // Expanding: restore positions relative to parent's current position
-      persistNodes(nodes.map(n => {
+      // Expanding: restore positions relative to parent's current position.
+      // For nodes that are still inner-collapsed, convert their collapseRel (relative to
+      // outer parent) back to collapseRel relative to their own inner-collapsed parent.
+      const nodeMap = new Map(nodes.map(n => [n.id, n]));
+      const expandedNodes = nodes.map(n => {
         if (n.id === id) return { ...n, collapsed: false };
         if (descendants.includes(n.id) && n.collapseRelX !== undefined && n.collapseRelX !== null) {
+          // Check if this node's direct parent (not the outer node) is itself collapsed
+          const directParent = nodeMap.get(n.parentId);
+          if (directParent && directParent.id !== id && directParent.collapsed) {
+            // This node should stay collapsed under its direct parent — keep collapseRel
+            // but it will be re-anchored when its direct parent gets its customX/Y restored
+            return { ...n, customX: parentPos.x + n.collapseRelX, customY: parentPos.y + n.collapseRelY, collapseRelX: null, collapseRelY: null };
+          }
           return { ...n, customX: parentPos.x + n.collapseRelX, customY: parentPos.y + n.collapseRelY, collapseRelX: null, collapseRelY: null };
+        }
+        return n;
+      });
+      // Second pass: for nodes whose direct parent is inner-collapsed, convert their
+      // absolute position back to collapseRel relative to their direct parent
+      const expandedMap = new Map(expandedNodes.map(n => [n.id, n]));
+      persistNodes(expandedNodes.map(n => {
+        if (n.id === id || !descendants.includes(n.id)) return n;
+        const directParent = expandedMap.get(n.parentId);
+        if (directParent && directParent.id !== id && directParent.collapsed && n.customX !== null && n.customX !== undefined) {
+          const pX = directParent.customX ?? directParent.collapseX ?? parentPos.x;
+          const pY = directParent.customY ?? directParent.collapseY ?? parentPos.y;
+          return { ...n, collapseRelX: n.customX - pX, collapseRelY: n.customY - pY, customX: null, customY: null };
         }
         return n;
       }));
@@ -2086,6 +2145,8 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
     } else if (e.key === 'Enter' && selectedId && !editingId) { setEditingId(selectedId); }
     else if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedId && !editingId) {
       e.preventDefault(); copyNode(selectedId); showToast('Node copied');
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'x' && selectedId && selectedId !== rootId && !editingId) {
+      e.preventDefault(); copyNode(selectedId); deleteNode(selectedId); setSelectedId(null); showToast('Node cut');
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'v' && selectedId && !editingId && clipboardRef.current) {
       e.preventDefault();
       const newId = pasteNode(selectedId);
@@ -3454,7 +3515,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.8</span>
+              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.9</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -3894,6 +3955,9 @@ function TaskFlow({ session, onSignOut }){
               <span style={{fontSize:15,fontWeight:400,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>{filtered.length}</span>
             </h1>
           </div>
+          <span style={{fontSize:13,color:'#5a6080',fontFamily:"'JetBrains Mono',monospace",fontWeight:500,whiteSpace:'nowrap'}}>
+            {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+          </span>
 
           {/* Category filter pills — always colored */}
           <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
@@ -3934,8 +3998,8 @@ function TaskFlow({ session, onSignOut }){
                 <div style={{display:'flex',gap:10,alignItems:'center'}}>
                   <span style={{color:'#4a9eff',fontSize:22,fontWeight:700}}>+</span>
                   <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
-                    onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){addTask(input);setInput('');}}}
-                    placeholder="Add a task... (#W for Work, #H for Home, etc.)"
+                    onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){const parentTask=selTask&&tasks.some(t=>t.parentId===selTask.id)?selTask:null;addTask(input,null,null,null,parentTask?parentTask.id:null);setInput('');}}}
+                    placeholder={selTask&&tasks.some(t=>t.parentId===selTask.id)?"Add subtask to "+selTask.title+"...":"Add a task... (#W for Work, #H for Home, etc.)"}
                     style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:"'IBM Plex Sans',sans-serif",color:'#d0d4e0',background:'transparent',padding:'4px 0'}}/>
                   {hasChecked&&<button onClick={clearChecked}
                     style={{border:'1px solid #2a4a2a',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
@@ -4065,13 +4129,13 @@ function AuthGate() {
     setAuthError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.href.split('?')[0].split('#')[0] }
+      options: { redirectTo: window.location.href.split('?')[0].split('#')[0], queryParams: { prompt: 'select_account' } }
     });
     if (error) setAuthError(error.message);
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'global' });
     setSession(null);
   };
 
