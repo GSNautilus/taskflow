@@ -995,7 +995,7 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
 
       {/* Status badge - click for dropdown, double-click for instant x */}
       <div style={{position:'relative',flexShrink:0}}>
-        <span onClick={handleStatusClick} style={{
+        <span onClick={handleStatusClick} onDoubleClick={e=>{e.stopPropagation();onChangeStatus(task.id,task.status==='x'?'':'x');}} style={{
           width:30,height:30,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
           fontSize:17,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",cursor:'pointer',
           background:task.status?s.bg:'#2a2a2a',color:task.status?s.color:'#4a4a4a',
@@ -1082,13 +1082,6 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         <span style={{fontSize:11,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:100,textAlign:'right'}}>{fmt(task.dateAdded)}</span>
       )}
 
-      {/* Clear from active (individual dismiss) — shown for checked tasks */}
-      {task.status&&task.status!==''&&task.status!=='u'&&(
-        <button onClick={e=>{e.stopPropagation();onUpdate({...task,activeVisible:false});}}
-          style={{border:'none',background:'transparent',cursor:'pointer',color:'#333',fontSize:14,padding:'0 2px',flexShrink:0,lineHeight:1,transition:'color 0.15s'}}
-          onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='#333'}
-          title="Clear from active">×</button>
-      )}
 
     </div>
   );
@@ -4001,6 +3994,16 @@ function TaskFlow({ session, onSignOut }){
                     onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){const parentTask=selTask&&tasks.some(t=>t.parentId===selTask.id)?selTask:null;addTask(input,null,null,null,parentTask?parentTask.id:null);setInput('');}}}
                     placeholder={selTask&&tasks.some(t=>t.parentId===selTask.id)?"Add subtask to "+selTask.title+"...":"Add a task... (#W for Work, #H for Home, etc.)"}
                     style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:"'IBM Plex Sans',sans-serif",color:'#d0d4e0',background:'transparent',padding:'4px 0'}}/>
+                  {selTask&&selTask.status&&selTask.status!==''&&selTask.status!=='u'&&(
+                    <button onClick={()=>{updateTask({...selTask,activeVisible:false});setSelId(null);}}
+                      style={{border:'1px solid #2a3a4a',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
+                        background:'rgba(74,158,255,0.08)',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
+                        transition:'all 0.15s',whiteSpace:'nowrap'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(74,158,255,0.16)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='rgba(74,158,255,0.08)'}>
+                      Clear selected
+                    </button>
+                  )}
                   {hasChecked&&<button onClick={clearChecked}
                     style={{border:'1px solid #2a4a2a',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
                       background:'rgba(110,207,110,0.1)',color:'#6ecf6e',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
