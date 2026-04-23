@@ -1516,7 +1516,11 @@ function useMindmap(sbSession) {
     const stored = loadLS(MM_PROJECTS_KEY, null);
     if (stored && Array.isArray(stored) && stored.length > 0) return stored;
     const pid = uuid();
-    const def = [{ id: pid, name: 'My Project', color: '#4a9eff' }];
+    // _autoDefault flags this project as one auto-created because localStorage
+    // was empty (e.g. Firefox cleared site data on close). Initial Supabase
+    // sync drops it if the cloud already has real projects. Flag is stripped
+    // the moment the user edits nodes or renames the project.
+    const def = [{ id: pid, name: 'My Project', color: '#4a9eff', _autoDefault: true }];
     saveLS(MM_PROJECTS_KEY, def);
     const old = loadLS('taskflow-mindmap', null);
     if (old && Array.isArray(old) && old.length > 0) {
@@ -1548,13 +1552,30 @@ function useMindmap(sbSession) {
 
   const rootId = useMemo(() => nodes.find(n => !n.parentId)?.id || null, [nodes]);
   const persistProjects = useCallback(pp => { setProjects(pp); saveLS(MM_PROJECTS_KEY, pp); if(sbSession) debouncedSaveSB(MM_PROJECTS_KEY, pp); }, [sbSession]);
+  // Strip _autoDefault from a project once the user has edited it. Safe to call
+  // on every edit — no-op if the flag was already cleared or never set.
+  const clearAutoDefault = useCallback(pid => {
+    const current = loadLS(MM_PROJECTS_KEY, []);
+    const target = current.find(p => p.id === pid);
+    if (!target || !target._autoDefault) return;
+    const updated = current.map(p => {
+      if (p.id !== pid) return p;
+      const { _autoDefault, ...rest } = p;
+      return rest;
+    });
+    saveLS(MM_PROJECTS_KEY, updated);
+    setProjects(updated);
+    if (sbSession) debouncedSaveSB(MM_PROJECTS_KEY, updated);
+  }, [sbSession]);
   const persistNodes = useCallback((nn, pid) => {
-    const key = MM_DATA_PREFIX + (pid || activeProjectIdRef.current);
+    const targetPid = pid || activeProjectIdRef.current;
+    const key = MM_DATA_PREFIX + targetPid;
     setNodes(nn);
     nodesRef.current = nn;
     saveLS(key, nn);
     if(sbSession) debouncedSaveSB(key, nn);
-  }, [sbSession]);
+    clearAutoDefault(targetPid);
+  }, [sbSession, clearAutoDefault]);
 
   const switchProject = useCallback(pid => {
     const currentPid = activeProjectIdRef.current;
@@ -1584,7 +1605,11 @@ function useMindmap(sbSession) {
   }, [projects, persistProjects, switchProject, sbSession]);
 
   const renameProject = useCallback((pid, name) => {
-    persistProjects(projects.map(p => p.id === pid ? { ...p, name } : p));
+    persistProjects(projects.map(p => {
+      if (p.id !== pid) return p;
+      const { _autoDefault, ...rest } = p;
+      return { ...rest, name };
+    }));
   }, [projects, persistProjects]);
 
   const deleteProject = useCallback(pid => {
@@ -1984,14 +2009,14 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
           background:isSelected?'rgba(74,158,255,0.12)':'transparent',
           borderLeft:isSelected?'2px solid #4a9eff':'2px solid transparent',
           transition:'all 0.12s',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",
-          color:isSelected?'#d0d4e0':node.checked?'#444':'#6a7090',
+          color:isSelected?'#d0d4e0':node.checked?'#6a6a6a':'#9aa4bd',
         }}
         onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}
         onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background='transparent';}}>
         {hasChildren?(
           <span onClick={e=>{e.stopPropagation();onToggleExpand(nodeId);}}
             style={{width:14,height:14,display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:9,color:'#606060',cursor:'pointer',transition:'transform 0.15s',flexShrink:0,
+              fontSize:9,color:'#9a9a9a',cursor:'pointer',transition:'transform 0.15s',flexShrink:0,
               transform:isExpanded?'rotate(90deg)':'rotate(0deg)'}}>▶</span>
         ):(<span style={{width:14,height:14,flexShrink:0}}/>)}
         {node.checked ? (
@@ -2001,7 +2026,7 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
         )}
         <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
           fontWeight:depth===0?600:400,textDecoration:node.checked?'line-through':'none'}}>{node.title}</span>
-        {hasChildren&&<span style={{fontSize:12,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace"}}>{node.children.length}</span>}
+        {hasChildren&&<span style={{fontSize:12,color:'#858585',fontFamily:"'JetBrains Mono',monospace"}}>{node.children.length}</span>}
       </div>
       {hasChildren && isExpanded && node.children.map(childId => (
         <MindmapTreeItem key={childId} nodeId={childId} nodes={nodes} depth={depth+1}
@@ -3150,7 +3175,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
 /* ── Kbd helper ── */
 function K({children}){
-  return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid #333333',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'#2a2a2a',color:'#606060'}}>{children}</kbd>;
+  return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid #3f3f3f',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'#2a2a2a',color:'#b0b0b0'}}>{children}</kbd>;
 }
 
 /* ══════════════════════════════════════════
@@ -3260,8 +3285,19 @@ function TaskFlow({ session, onSignOut }){
 
         // Load mindmap projects — merge local + cloud, prefer whichever has more data
         const sbProjects = await loadSB(MM_PROJECTS_KEY);
-        const localProjects = loadLS(MM_PROJECTS_KEY, []);
+        let localProjects = loadLS(MM_PROJECTS_KEY, []);
         if (sbProjects && Array.isArray(sbProjects) && sbProjects.length > 0) {
+          // Drop any local project that was auto-created this session by the
+          // useMindmap initializer (flag _autoDefault) and isn't known to the
+          // cloud. Without this, Firefox's "clear on close" behavior spawns a
+          // ghost "My Project" every login that gets merged and re-uploaded.
+          const sbIds = new Set(sbProjects.map(p => p.id));
+          const dropped = localProjects.filter(p => p._autoDefault && !sbIds.has(p.id));
+          if (dropped.length > 0) {
+            dropped.forEach(p => { try { localStorage.removeItem(MM_DATA_PREFIX + p.id); } catch(e) {} });
+            localProjects = localProjects.filter(p => !(p._autoDefault && !sbIds.has(p.id)));
+            saveLS(MM_PROJECTS_KEY, localProjects);
+          }
           // Merge project lists: keep all projects from both sources
           const mergedProjectMap = new Map();
           localProjects.forEach(p => mergedProjectMap.set(p.id, p));
@@ -3508,7 +3544,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'#4a4a4a',letterSpacing:0}}>v0.1.9</span>
+              <span style={{fontSize:10,fontWeight:400,color:'#757575',letterSpacing:0}}>v0.1.9</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -3520,11 +3556,11 @@ function TaskFlow({ session, onSignOut }){
         {/* Main/Calendar tab toggle */}
         {sidebarOpen&&<div style={{padding:'12px 12px',display:'flex',gap:6,borderBottom:'1px solid #2a2a2a'}}>
           <button onClick={()=>setMainTab('tasks')}
-            style={{flex:1,border:mainTab==='tasks'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='tasks'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='tasks'?'#4a9eff':'#666',fontWeight:600}}>☰ Tasks</button>
+            style={{flex:1,border:mainTab==='tasks'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='tasks'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='tasks'?'#4a9eff':'#a0a0a0',fontWeight:600}}>☰ Tasks</button>
           <button onClick={()=>setMainTab('calendar')}
-            style={{flex:1,border:mainTab==='calendar'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='calendar'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='calendar'?'#4a9eff':'#666',fontWeight:600}}>📅 Calendar</button>
+            style={{flex:1,border:mainTab==='calendar'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='calendar'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='calendar'?'#4a9eff':'#a0a0a0',fontWeight:600}}>📅 Calendar</button>
           <button onClick={()=>setMainTab('mindmap')}
-            style={{flex:1,border:mainTab==='mindmap'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='mindmap'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='mindmap'?'#4a9eff':'#666',fontWeight:600}}>🧠 Mindmap</button>
+            style={{flex:1,border:mainTab==='mindmap'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='mindmap'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='mindmap'?'#4a9eff':'#a0a0a0',fontWeight:600}}>🧠 Mindmap</button>
         </div>}
 
         {/* View buttons — only show in Tasks tab */}
@@ -3534,28 +3570,28 @@ function TaskFlow({ session, onSignOut }){
             const sc=STATUS_CONFIG[v.key==='active'?'':v.key];
             const useColor=sc?.sidebarColor;
             const activeColor=useColor?(sc?.color||'#d0d4e0'):'#d0d4e0';
-            const inactiveColor=useColor?(sc?.color||'#606060'):'#606060';
+            const inactiveColor=useColor?(sc?.color||'#a0a0a0'):'#a0a0a0';
             return(
               <button key={v.key} onClick={()=>{setView(v.key);setCatFilter(null);setSearch('');setShowCatMgr(false);}}
                 style={{display:'flex',alignItems:'center',gap:12,width:'100%',border:'none',
                   background:act?'rgba(74,158,255,0.08)':'transparent',
                   padding:sidebarOpen?'12px 16px':'12px 14px',cursor:'pointer',
                   color:act?activeColor:inactiveColor,
-                  opacity:act?1:0.5,
+                  opacity:act?1:0.75,
                   transition:'all 0.15s',
                   fontSize:22,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:act?600:400,
                   borderLeft:act?'3px solid '+(useColor?(sc?.color||'#4a9eff'):'#4a9eff'):'3px solid transparent',
                 }}
-                onMouseEnter={e=>{if(!act)e.currentTarget.style.opacity='0.8';}}
-                onMouseLeave={e=>{if(!act)e.currentTarget.style.opacity='0.5';}}>
+                onMouseEnter={e=>{if(!act)e.currentTarget.style.opacity='1';}}
+                onMouseLeave={e=>{if(!act)e.currentTarget.style.opacity='0.75';}}>
                 <span style={{width:28,height:28,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",flexShrink:0,
                   background:v.key==='all'?'transparent':(v.key==='active'?'#2a2a2a':(sc?.bg||'#2a2a2a')),
-                  color:v.key==='all'?(act?activeColor:inactiveColor):(v.key==='active'?'#4a4a4a':(sc?.color||'#4a4a4a')),
+                  color:v.key==='all'?(act?activeColor:inactiveColor):(v.key==='active'?'#707070':(sc?.color||'#707070')),
                   border:v.key==='all'?'none':(v.key==='active'?'2px solid #333333':'none'),
                 }}>{v.key==='all'?'≡':v.icon}</span>
                 {sidebarOpen&&<>
                   <span style={{flex:1,textAlign:'left'}}>{v.label}</span>
-                  {c>0&&<span style={{fontSize:16,fontFamily:"'JetBrains Mono',monospace",opacity:0.6,background:act?'rgba(255,255,255,0.08)':'transparent',padding:'2px 10px',borderRadius:10}}>{c}</span>}
+                  {c>0&&<span style={{fontSize:16,fontFamily:"'JetBrains Mono',monospace",opacity:0.85,background:act?'rgba(255,255,255,0.08)':'transparent',padding:'2px 10px',borderRadius:10}}>{c}</span>}
                 </>}
               </button>
             );
@@ -3566,10 +3602,10 @@ function TaskFlow({ session, onSignOut }){
         {sidebarOpen&&mainTab==='tasks'&&<button onClick={()=>setShowCatMgr(!showCatMgr)}
           style={{margin:'0 12px',padding:'10px 12px',border:'1px solid #2a2a2a',borderRadius:8,
             background:showCatMgr?'rgba(74,158,255,0.08)':'transparent',
-            color:showCatMgr?'#d0d4e0':'#606060',cursor:'pointer',fontSize:14,textAlign:'left',
+            color:showCatMgr?'#d0d4e0':'#a0a0a0',cursor:'pointer',fontSize:14,textAlign:'left',
             display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
           }}
-          onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>{if(!showCatMgr)e.currentTarget.style.color='#606060';}}>
+          onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>{if(!showCatMgr)e.currentTarget.style.color='#a0a0a0';}}>
           <span style={{fontSize:15}}>🎨</span><span>Categories</span>
         </button>}
 
@@ -3577,15 +3613,15 @@ function TaskFlow({ session, onSignOut }){
         {sidebarOpen&&mainTab==='tasks'&&<button onClick={()=>setShowImportExport(true)}
           style={{margin:'6px 12px 0',padding:'10px 12px',border:'1px solid #2a2a2a',borderRadius:8,
             background:'transparent',
-            color:'#606060',cursor:'pointer',fontSize:14,textAlign:'left',
+            color:'#a0a0a0',cursor:'pointer',fontSize:14,textAlign:'left',
             display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
           }}
-          onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#606060'}>
+          onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>e.currentTarget.style.color='#a0a0a0'}>
           <span style={{fontSize:15}}>↕</span><span>Import / Export</span>
         </button>}
 
         {/* Keyboard shortcuts */}
-        {sidebarOpen&&mainTab==='tasks'&&<div style={{padding:'14px 16px',borderTop:'1px solid #2a2a2a',color:'#4a4a4a',fontSize:11,fontFamily:"'JetBrains Mono',monospace",lineHeight:2.1,marginTop:12}}>
+        {sidebarOpen&&mainTab==='tasks'&&<div style={{padding:'14px 16px',borderTop:'1px solid #2a2a2a',color:'#858585',fontSize:11,fontFamily:"'JetBrains Mono',monospace",lineHeight:2.1,marginTop:12}}>
           <div><K>x</K> done <K>s</K> skip</div>
           <div><K>t</K> tmrw <K>w</K> week <K>m</K> month</div>
           <div><K>l</K> long <K>u</K> urgent</div>
@@ -3625,11 +3661,11 @@ function TaskFlow({ session, onSignOut }){
                   style={{display:'flex',alignItems:'center',gap:10,flex:1,border:'none',
                     background:'transparent',
                     padding:'10px 16px',cursor:'pointer',
-                    color:isActive?'#d0d4e0':'#606060',opacity:isActive?1:0.6,
+                    color:isActive?'#d0d4e0':'#a8a8a8',opacity:isActive?1:0.85,
                     transition:'all 0.15s',fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:isActive?600:400,
                   }}
-                  onMouseEnter={e=>{if(!isActive)e.currentTarget.style.opacity='0.8';}}
-                  onMouseLeave={e=>{if(!isActive)e.currentTarget.style.opacity='0.6';}}>
+                  onMouseEnter={e=>{if(!isActive)e.currentTarget.style.opacity='1';}}
+                  onMouseLeave={e=>{if(!isActive)e.currentTarget.style.opacity='0.85';}}>
                   <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'#4a9eff',flexShrink:0}}/>
                   <span style={{flex:1,textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</span>
                 </button>
@@ -3654,10 +3690,10 @@ function TaskFlow({ session, onSignOut }){
               <button onClick={()=>setAddingProject(true)}
                 style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',
                   background:'transparent',padding:'8px 16px',cursor:'pointer',
-                  color:'#4a4a4a',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
+                  color:'#808080',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
                   transition:'color 0.15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='#4a9eff'}
-                onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>
+                onMouseLeave={e=>e.currentTarget.style.color='#808080'}>
                 <span style={{fontSize:16,fontWeight:700}}>+</span>
                 <span>New Project</span>
               </button>
@@ -3666,15 +3702,15 @@ function TaskFlow({ session, onSignOut }){
 
           {/* Tree header with expand/collapse */}
           <div style={{padding:'10px 12px 6px',display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:11,fontWeight:600,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Nodes</span>
+            <span style={{fontSize:11,fontWeight:600,color:'#a0a0a0',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Nodes</span>
             <button onClick={mmExpandAll} title="Expand all"
               style={{border:'1px solid #333333',borderRadius:3,padding:'2px 5px',background:'transparent',
-                color:'#4a4a4a',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>⊞</button>
+                color:'#858585',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>e.currentTarget.style.color='#858585'}>⊞</button>
             <button onClick={mmCollapseAll} title="Collapse all"
               style={{border:'1px solid #333333',borderRadius:3,padding:'2px 5px',background:'transparent',
-                color:'#4a4a4a',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#6a7090'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>⊟</button>
+                color:'#858585',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>e.currentTarget.style.color='#858585'}>⊟</button>
           </div>
 
           {/* Tree navigator */}
@@ -3755,7 +3791,7 @@ function TaskFlow({ session, onSignOut }){
                 );
               })}
             </div>
-            {!mm.selectedId&&<div style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new nodes</div>}
+            {!mm.selectedId&&<div style={{fontSize:10,color:'#8a8a8a',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new nodes</div>}
             {(()=>{
               const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
               const isRoot=mm.selectedId===mm.rootId;
@@ -3788,12 +3824,12 @@ function TaskFlow({ session, onSignOut }){
             })()}
             <button onClick={()=>setShowMmImportExport(true)}
               style={{marginTop:6,padding:'5px 0',background:'transparent',
-                border:'1px solid #333333',color:'#606060',borderRadius:4,
+                border:'1px solid #333333',color:'#a0a0a0',borderRadius:4,
                 cursor:'pointer',fontSize:11,fontWeight:500,width:'100%',
                 fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',
                 display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
-              onMouseEnter={e=>{e.currentTarget.style.color='#6a7090';e.currentTarget.style.borderColor='#4a4a4a';}}
-              onMouseLeave={e=>{e.currentTarget.style.color='#606060';e.currentTarget.style.borderColor='#333333';}}>
+              onMouseEnter={e=>{e.currentTarget.style.color='#d0d4e0';e.currentTarget.style.borderColor='#4a4a4a';}}
+              onMouseLeave={e=>{e.currentTarget.style.color='#a0a0a0';e.currentTarget.style.borderColor='#333333';}}>
               <span style={{fontSize:13}}>↕</span> Import / Export
             </button>
           </div>
