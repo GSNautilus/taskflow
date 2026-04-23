@@ -12,13 +12,180 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+/* ════════════════════════════════════════════════
+   Theme tokens — dark is default. Light values live
+   under html[data-theme="light"]. Add new themes by
+   adding another selector with the same token names.
+   ════════════════════════════════════════════════ */
+:root, html[data-theme="dark"] {
+  /* Backgrounds */
+  --c-bg:              #1a1a1a;
+  --c-bg-deep:         #161616;
+  --c-bg-dropdown:     #1a1a1e;
+  --c-bg-cool:         #1a1f30;
+  --c-surface:         #1e1e1e;
+  --c-surface-2:       #222;
+  --c-surface-3:       #242424;
+  --c-surface-3b:      #242428;
+  --c-surface-raised:  #2a2a2a;
+  --c-surface-cool:    #2a2f3a;
+  --c-surface-cool-2:  #2a3a4a;
+  --c-surface-modal:   #2c2c2c;
+  --c-surface-elev:    #2e2e2e;
+  --c-surface-hover:   #353535;
+  --c-surface-hi:      #3a3a3a;
+  --c-surface-hi-2:    #3f3f3f;
+
+  /* Borders */
+  --c-border:          #333333;
+  --c-border-weak:     #444;
+  --c-border-strong:   #4a4a4a;
+
+  /* Text */
+  --c-text:            #d0d4e0;
+  --c-text-pale:       #e0e0e0;
+  --c-text-pale-2:     #ccc;
+  --c-text-secondary:  #a0a0a0;
+  --c-text-secondary-2:#a8a8a8;
+  --c-text-secondary-3:#b0b0b0;
+  --c-text-secondary-4:#9a9a9a;
+  --c-text-secondary-5:#9aa4bd;
+  --c-text-secondary-6:#9aa;
+  --c-text-cool:       #8a9bb8;
+  --c-text-cool-2:     #6a7090;
+  --c-text-cool-3:     #5a6080;
+  --c-text-faint-cool: #505060;
+  --c-text-muted:      #606060;
+  --c-text-muted-2:    #6a6a6a;
+  --c-text-muted-3:    #666;
+  --c-text-muted-4:    #707070;
+  --c-text-muted-5:    #757575;
+  --c-text-muted-6:    #777;
+  --c-text-muted-7:    #808080;
+  --c-text-muted-8:    #858585;
+  --c-text-muted-9:    #888;
+  --c-text-muted-10:   #8a8a8a;
+  --c-text-dim:        #555;
+  --c-text-dim-2:      #555555;
+
+  /* Accent */
+  --c-accent:          #4a9eff;
+  --c-accent-08:       rgba(74,158,255,0.08);
+  --c-accent-12:       rgba(74,158,255,0.12);
+  --c-accent-25:       rgba(74,158,255,0.25);
+  --c-accent-30:       rgba(74,158,255,0.3);
+  --c-accent-06:       rgba(74,158,255,0.06);
+  --c-accent-10:       rgba(74,158,255,0.10);
+  --c-accent-16:       rgba(74,158,255,0.16);
+  --c-accent-03:       rgba(74,158,255,0.03);
+  --c-accent-cool-50:  rgba(30,36,56,0.5);
+  --c-accent-cool-30:  rgba(30,36,56,0.3);
+
+  /* Overlays / shadows */
+  --c-shadow-60:       rgba(0,0,0,0.6);
+  --c-shadow-50:       rgba(0,0,0,0.5);
+  --c-shadow-40:       rgba(0,0,0,0.4);
+  --c-white-12:        rgba(255,255,255,0.12);
+  --c-white-08:        rgba(255,255,255,0.08);
+  --c-white-03:        rgba(255,255,255,0.03);
+  --c-white-02:        rgba(255,255,255,0.02);
+
+  /* Status badge backgrounds (match dark aesthetic) */
+  --c-status-done-bg:    #2a4a2a;
+  --c-status-tmrw-bg:    #3a3520;
+  --c-status-weekly-bg:  #1a2a3e;
+  --c-status-monthly-bg: #3a2a1a;
+  --c-status-long-bg:    #2a1a3e;
+  --c-status-urgent-bg:  #4a1a1a;
+
+  /* Typography (room to grow — swap fonts per theme) */
+  --font-sans:  'IBM Plex Sans', sans-serif;
+  --font-mono:  'JetBrains Mono', monospace;
+}
+
+html[data-theme="light"] {
+  --c-bg:              #f0f2f5;
+  --c-bg-deep:         #e4e7ec;
+  --c-bg-dropdown:     #ffffff;
+  --c-bg-cool:         #e4e8f0;
+  --c-surface:         #ffffff;
+  --c-surface-2:       #f5f7fa;
+  --c-surface-3:       #eef0f3;
+  --c-surface-3b:      #e8ebf0;
+  --c-surface-raised:  #e2e6ec;
+  --c-surface-cool:    #dce0e8;
+  --c-surface-cool-2:  #d4dae4;
+  --c-surface-modal:   #ffffff;
+  --c-surface-elev:    #f5f7fa;
+  --c-surface-hover:   #d0d5dc;
+  --c-surface-hi:      #c4cad3;
+  --c-surface-hi-2:    #b8bec8;
+
+  --c-border:          #cfd4dc;
+  --c-border-weak:     #b8bec8;
+  --c-border-strong:   #a4aab5;
+
+  --c-text:            #1a1f2e;
+  --c-text-pale:       #2a2f3e;
+  --c-text-pale-2:     #3a3f4e;
+  --c-text-secondary:  #4a5060;
+  --c-text-secondary-2:#525868;
+  --c-text-secondary-3:#5a6070;
+  --c-text-secondary-4:#585e6e;
+  --c-text-secondary-5:#556080;
+  --c-text-secondary-6:#606878;
+  --c-text-cool:       #4a5878;
+  --c-text-cool-2:     #5c6890;
+  --c-text-cool-3:     #6c7898;
+  --c-text-faint-cool: #7a82a0;
+  --c-text-muted:      #6a7080;
+  --c-text-muted-2:    #707685;
+  --c-text-muted-3:    #747a88;
+  --c-text-muted-4:    #787e8c;
+  --c-text-muted-5:    #7c8290;
+  --c-text-muted-6:    #808690;
+  --c-text-muted-7:    #848a94;
+  --c-text-muted-8:    #888e98;
+  --c-text-muted-9:    #8c929c;
+  --c-text-muted-10:   #8f959e;
+  --c-text-dim:        #9aa0ac;
+  --c-text-dim-2:      #9ea4b0;
+
+  --c-accent:          #2e7de0;
+  --c-accent-08:       rgba(46,125,224,0.1);
+  --c-accent-12:       rgba(46,125,224,0.15);
+  --c-accent-25:       rgba(46,125,224,0.25);
+  --c-accent-30:       rgba(46,125,224,0.32);
+  --c-accent-06:       rgba(46,125,224,0.08);
+  --c-accent-10:       rgba(46,125,224,0.12);
+  --c-accent-16:       rgba(46,125,224,0.2);
+  --c-accent-03:       rgba(46,125,224,0.05);
+  --c-accent-cool-50:  rgba(180,200,230,0.5);
+  --c-accent-cool-30:  rgba(180,200,230,0.3);
+
+  --c-shadow-60:       rgba(30,40,60,0.25);
+  --c-shadow-50:       rgba(30,40,60,0.18);
+  --c-shadow-40:       rgba(30,40,60,0.12);
+  --c-white-12:        rgba(30,40,60,0.08);
+  --c-white-08:        rgba(30,40,60,0.05);
+  --c-white-03:        rgba(30,40,60,0.03);
+  --c-white-02:        rgba(30,40,60,0.02);
+
+  --c-status-done-bg:    #d4f0d4;
+  --c-status-tmrw-bg:    #fbeec0;
+  --c-status-weekly-bg:  #d4e0f4;
+  --c-status-monthly-bg: #f8dcc4;
+  --c-status-long-bg:    #e4d4f4;
+  --c-status-urgent-bg:  #f8d4d4;
+}
+
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;width:100%;overflow:hidden}
-body{background:#1a1a1a;color:#d0d4e0;font-family:'IBM Plex Sans',sans-serif}
+body{background:var(--c-bg);color:var(--c-text);font-family:var(--font-sans);transition:background 0.2s ease,color 0.2s ease}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#333333;border-radius:3px}
-input::placeholder{color:#555555!important}
+::-webkit-scrollbar-thumb{background:var(--c-border);border-radius:3px}
+input::placeholder{color:var(--c-text-dim-2)!important}
 input[type="color"]{-webkit-appearance:none;border:none;cursor:pointer}
 input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
 input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
@@ -26,6 +193,10 @@ input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
 </style>
 </head>
 <body>
+<script>
+  /* Set theme attribute before React mounts to avoid a flash on light-theme users */
+  try { var t = JSON.parse(localStorage.getItem('taskflow-theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else document.documentElement.dataset.theme = 'dark'; } catch(e) { document.documentElement.dataset.theme = 'dark'; }
+</script>
 <div id="root"></div>
 <script type="text/babel">
 const{useState,useEffect,useCallback,useRef,useMemo}=React;
@@ -171,13 +342,13 @@ const DEFAULT_CATEGORIES={
 
 const STATUS_CONFIG={
   '':{label:'Active',color:'#8a9bb8',bg:'transparent',rowBg:'transparent',sidebarColor:true},
-  'x':{label:'Done',color:'#6ecf6e',bg:'#2a4a2a',rowBg:'rgba(110,207,110,0.08)',sidebarColor:true},
-  's':{label:'Skipped',color:'#777',bg:'#333',rowBg:'rgba(120,120,120,0.06)',sidebarColor:true},
-  't':{label:'Tomorrow',color:'#f0c040',bg:'#3a3520',rowBg:'rgba(240,192,64,0.07)',sidebarColor:false},
-  'w':{label:'Weekly',color:'#50a0e0',bg:'#1a2a3e',rowBg:'rgba(80,160,224,0.07)',sidebarColor:false},
-  'm':{label:'Monthly',color:'#e08050',bg:'#3a2a1a',rowBg:'rgba(224,128,80,0.07)',sidebarColor:false},
-  'l':{label:'Long-term',color:'#b080e0',bg:'#2a1a3e',rowBg:'rgba(176,128,224,0.07)',sidebarColor:false},
-  'u':{label:'Urgent',color:'#ff6b6b',bg:'#4a1a1a',rowBg:'rgba(255,107,107,0.1)',sidebarColor:true},
+  'x':{label:'Done',color:'#6ecf6e',bg:'var(--c-status-done-bg)',rowBg:'rgba(110,207,110,0.08)',sidebarColor:true},
+  's':{label:'Skipped',color:'#777',bg:'var(--c-border)',rowBg:'rgba(120,120,120,0.06)',sidebarColor:true},
+  't':{label:'Tomorrow',color:'#f0c040',bg:'var(--c-status-tmrw-bg)',rowBg:'rgba(240,192,64,0.07)',sidebarColor:false},
+  'w':{label:'Weekly',color:'#50a0e0',bg:'var(--c-status-weekly-bg)',rowBg:'rgba(80,160,224,0.07)',sidebarColor:false},
+  'm':{label:'Monthly',color:'#e08050',bg:'var(--c-status-monthly-bg)',rowBg:'rgba(224,128,80,0.07)',sidebarColor:false},
+  'l':{label:'Long-term',color:'#b080e0',bg:'var(--c-status-long-bg)',rowBg:'rgba(176,128,224,0.07)',sidebarColor:false},
+  'u':{label:'Urgent',color:'#ff6b6b',bg:'var(--c-status-urgent-bg)',rowBg:'rgba(255,107,107,0.1)',sidebarColor:true},
 };
 
 const VIEWS=[
@@ -446,31 +617,31 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
   const handleDrop=e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);};
 
   return(
-    <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
-      <div ref={ref} style={{background:'#242424',border:'1px solid #333333',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'var(--c-shadow-60)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
+      <div ref={ref} style={{background:'var(--c-surface-3)',border:'1px solid var(--c-border)',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px var(--c-shadow-50)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0}}>Import / Export</h2>
-          <button onClick={onClose} style={{border:'none',background:'transparent',color:'#555',fontSize:22,cursor:'pointer',padding:'0 4px'}}
-            onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#555'}>×</button>
+          <h2 style={{fontSize:20,fontWeight:600,color:'var(--c-text)',margin:0}}>Import / Export</h2>
+          <button onClick={onClose} style={{border:'none',background:'transparent',color:'var(--c-text-dim)',fontSize:22,cursor:'pointer',padding:'0 4px'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-dim)'}>×</button>
         </div>
 
         {/* Import section */}
         <div style={{marginBottom:24}}>
-          <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--c-text-cool)',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:16}}>📥</span> Import Tasks
           </div>
           <div
             onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
             style={{
-              border:dragOver?'2px solid #4a9eff':'2px dashed #3a3a3a',
+              border:dragOver?'2px solid var(--c-accent)':'2px dashed var(--c-surface-hi)',
               borderRadius:10,padding:'24px 16px',textAlign:'center',cursor:'pointer',
-              background:dragOver?'rgba(74,158,255,0.06)':'#1a1a1a',
+              background:dragOver?'var(--c-accent-06)':'var(--c-bg)',
               transition:'all 0.15s',
             }}>
             <div style={{fontSize:28,marginBottom:8}}>{dragOver?'📂':'📄'}</div>
-            <div style={{fontSize:14,color:'#6a7090',marginBottom:4}}>Drop a file here or click to browse</div>
-            <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>.xlsx or .json</div>
+            <div style={{fontSize:14,color:'var(--c-text-cool-2)',marginBottom:4}}>Drop a file here or click to browse</div>
+            <div style={{fontSize:12,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>.xlsx or .json</div>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.json" style={{display:'none'}} onChange={e=>handleFile(e.target.files[0])}/>
           </div>
 
@@ -479,13 +650,13 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
             {[{key:'merge',label:'Merge',desc:'Add to existing tasks'},{key:'replace',label:'Replace',desc:'Clear & replace all tasks'}].map(m=>(
               <button key={m.key} onClick={()=>setImportMode(m.key)}
                 style={{
-                  flex:1,border:importMode===m.key?'1.5px solid #4a9eff':'1.5px solid #333333',
+                  flex:1,border:importMode===m.key?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',
                   borderRadius:8,padding:'8px 12px',cursor:'pointer',
-                  background:importMode===m.key?'rgba(74,158,255,0.08)':'#1a1a1a',
+                  background:importMode===m.key?'var(--c-accent-08)':'var(--c-bg)',
                   textAlign:'left',transition:'all 0.15s',
                 }}>
-                <div style={{fontSize:13,fontWeight:600,color:importMode===m.key?'#4a9eff':'#6a7090'}}>{m.label}</div>
-                <div style={{fontSize:11,color:'#606060',marginTop:2}}>{m.desc}</div>
+                <div style={{fontSize:13,fontWeight:600,color:importMode===m.key?'var(--c-accent)':'var(--c-text-cool-2)'}}>{m.label}</div>
+                <div style={{fontSize:11,color:'var(--c-text-muted)',marginTop:2}}>{m.desc}</div>
               </button>
             ))}
           </div>
@@ -493,22 +664,22 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
 
         {/* Export section */}
         <div>
-          <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--c-text-cool)',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:16}}>📤</span> Export Tasks
-            <span style={{fontSize:12,color:'#606060',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{taskCount} tasks</span>
+            <span style={{fontSize:12,color:'var(--c-text-muted)',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{taskCount} tasks</span>
           </div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={onExportJson}
-              style={{flex:1,border:'1.5px solid #333333',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#1a1a1a',textAlign:'left',transition:'all 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#333333'}>
-              <div style={{fontSize:14,fontWeight:600,color:'#d0d4e0'}}>TaskFlow JSON</div>
-              <div style={{fontSize:11,color:'#606060',marginTop:3}}>Full data, re-importable into TaskFlow</div>
+              style={{flex:1,border:'1.5px solid var(--c-border)',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'var(--c-bg)',textAlign:'left',transition:'all 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--c-accent)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--c-border)'}>
+              <div style={{fontSize:14,fontWeight:600,color:'var(--c-text)'}}>TaskFlow JSON</div>
+              <div style={{fontSize:11,color:'var(--c-text-muted)',marginTop:3}}>Full data, re-importable into TaskFlow</div>
             </button>
             <button onClick={onExportXlsx}
-              style={{flex:1,border:'1.5px solid #333333',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#1a1a1a',textAlign:'left',transition:'all 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#333333'}>
-              <div style={{fontSize:14,fontWeight:600,color:'#d0d4e0'}}>Excel (.xlsx)</div>
-              <div style={{fontSize:11,color:'#606060',marginTop:3}}>Spreadsheet format, re-importable</div>
+              style={{flex:1,border:'1.5px solid var(--c-border)',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'var(--c-bg)',textAlign:'left',transition:'all 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--c-accent)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--c-border)'}>
+              <div style={{fontSize:14,fontWeight:600,color:'var(--c-text)'}}>Excel (.xlsx)</div>
+              <div style={{fontSize:11,color:'var(--c-text-muted)',marginTop:3}}>Spreadsheet format, re-importable</div>
             </button>
           </div>
         </div>
@@ -517,7 +688,7 @@ function ImportExportModal({onClose,onImport,onExportJson,onExportXlsx,taskCount
         {status&&(
           <div style={{marginTop:14,padding:'8px 12px',borderRadius:6,fontSize:13,fontFamily:"'JetBrains Mono',monospace",
             background:status.type==='success'?'rgba(110,207,110,0.1)':(status.type==='error'?'rgba(255,107,107,0.1)':'rgba(74,158,255,0.1)'),
-            color:status.type==='success'?'#6ecf6e':(status.type==='error'?'#ff6b6b':'#4a9eff'),
+            color:status.type==='success'?'#6ecf6e':(status.type==='error'?'#ff6b6b':'var(--c-accent)'),
           }}>{status.msg}</div>
         )}
       </div>
@@ -581,31 +752,31 @@ function MindmapImportExportModal({onClose,projects,onImport,nodeCount,projectCo
   const handleDrop=e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);};
 
   return(
-    <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
-      <div ref={ref} style={{background:'#242424',border:'1px solid #333333',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'var(--c-shadow-60)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
+      <div ref={ref} style={{background:'var(--c-surface-3)',border:'1px solid var(--c-border)',borderRadius:14,padding:28,width:460,maxWidth:'90vw',boxShadow:'0 20px 60px var(--c-shadow-50)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0}}>Mindmap Import / Export</h2>
-          <button onClick={onClose} style={{border:'none',background:'transparent',color:'#555',fontSize:22,cursor:'pointer',padding:'0 4px'}}
-            onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#555'}>×</button>
+          <h2 style={{fontSize:20,fontWeight:600,color:'var(--c-text)',margin:0}}>Mindmap Import / Export</h2>
+          <button onClick={onClose} style={{border:'none',background:'transparent',color:'var(--c-text-dim)',fontSize:22,cursor:'pointer',padding:'0 4px'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-dim)'}>×</button>
         </div>
 
         {/* Import section */}
         <div style={{marginBottom:24}}>
-          <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--c-text-cool)',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:16}}>📥</span> Import Mindmap
           </div>
           <div
             onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
             style={{
-              border:dragOver?'2px solid #4a9eff':'2px dashed #3a3a3a',
+              border:dragOver?'2px solid var(--c-accent)':'2px dashed var(--c-surface-hi)',
               borderRadius:10,padding:'24px 16px',textAlign:'center',cursor:'pointer',
-              background:dragOver?'rgba(74,158,255,0.06)':'#1a1a1a',
+              background:dragOver?'var(--c-accent-06)':'var(--c-bg)',
               transition:'all 0.15s',
             }}>
             <div style={{fontSize:28,marginBottom:8}}>{dragOver?'📂':'🗺️'}</div>
-            <div style={{fontSize:14,color:'#6a7090',marginBottom:4}}>Drop a mindmap export here or click to browse</div>
-            <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>.json (TaskFlow mindmap format)</div>
+            <div style={{fontSize:14,color:'var(--c-text-cool-2)',marginBottom:4}}>Drop a mindmap export here or click to browse</div>
+            <div style={{fontSize:12,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>.json (TaskFlow mindmap format)</div>
             <input ref={fileRef} type="file" accept=".json" style={{display:'none'}} onChange={e=>handleFile(e.target.files[0])}/>
           </div>
 
@@ -614,13 +785,13 @@ function MindmapImportExportModal({onClose,projects,onImport,nodeCount,projectCo
             {[{key:'merge',label:'Merge',desc:'Add projects alongside existing'},{key:'replace',label:'Replace',desc:'Clear all & replace mindmap'}].map(m=>(
               <button key={m.key} onClick={()=>setImportMode(m.key)}
                 style={{
-                  flex:1,border:importMode===m.key?'1.5px solid #4a9eff':'1.5px solid #333333',
+                  flex:1,border:importMode===m.key?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',
                   borderRadius:8,padding:'8px 12px',cursor:'pointer',
-                  background:importMode===m.key?'rgba(74,158,255,0.08)':'#1a1a1a',
+                  background:importMode===m.key?'var(--c-accent-08)':'var(--c-bg)',
                   textAlign:'left',transition:'all 0.15s',
                 }}>
-                <div style={{fontSize:13,fontWeight:600,color:importMode===m.key?'#4a9eff':'#6a7090'}}>{m.label}</div>
-                <div style={{fontSize:11,color:'#606060',marginTop:2}}>{m.desc}</div>
+                <div style={{fontSize:13,fontWeight:600,color:importMode===m.key?'var(--c-accent)':'var(--c-text-cool-2)'}}>{m.label}</div>
+                <div style={{fontSize:11,color:'var(--c-text-muted)',marginTop:2}}>{m.desc}</div>
               </button>
             ))}
           </div>
@@ -628,15 +799,15 @@ function MindmapImportExportModal({onClose,projects,onImport,nodeCount,projectCo
 
         {/* Export section */}
         <div>
-          <div style={{fontSize:14,fontWeight:600,color:'#8a9bb8',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--c-text-cool)',marginBottom:10,display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:16}}>📤</span> Export Mindmap
-            <span style={{fontSize:12,color:'#606060',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{projectCount} project{projectCount===1?'':'s'}, {nodeCount} nodes</span>
+            <span style={{fontSize:12,color:'var(--c-text-muted)',fontWeight:400,fontFamily:"'JetBrains Mono',monospace"}}>{projectCount} project{projectCount===1?'':'s'}, {nodeCount} nodes</span>
           </div>
           <button onClick={()=>exportMindmapJson(projects)}
-            style={{width:'100%',border:'1.5px solid #333333',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'#1a1a1a',textAlign:'left',transition:'all 0.15s'}}
-            onMouseEnter={e=>e.currentTarget.style.borderColor='#4a9eff'} onMouseLeave={e=>e.currentTarget.style.borderColor='#333333'}>
-            <div style={{fontSize:14,fontWeight:600,color:'#d0d4e0'}}>TaskFlow Mindmap JSON</div>
-            <div style={{fontSize:11,color:'#606060',marginTop:3}}>All projects, nodes, notes, positions & connections</div>
+            style={{width:'100%',border:'1.5px solid var(--c-border)',borderRadius:8,padding:'12px 14px',cursor:'pointer',background:'var(--c-bg)',textAlign:'left',transition:'all 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor='var(--c-accent)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--c-border)'}>
+            <div style={{fontSize:14,fontWeight:600,color:'var(--c-text)'}}>TaskFlow Mindmap JSON</div>
+            <div style={{fontSize:11,color:'var(--c-text-muted)',marginTop:3}}>All projects, nodes, notes, positions & connections</div>
           </button>
         </div>
 
@@ -644,7 +815,7 @@ function MindmapImportExportModal({onClose,projects,onImport,nodeCount,projectCo
         {status&&(
           <div style={{marginTop:14,padding:'8px 12px',borderRadius:6,fontSize:13,fontFamily:"'JetBrains Mono',monospace",
             background:status.type==='success'?'rgba(110,207,110,0.1)':(status.type==='error'?'rgba(255,107,107,0.1)':'rgba(74,158,255,0.1)'),
-            color:status.type==='success'?'#6ecf6e':(status.type==='error'?'#ff6b6b':'#4a9eff'),
+            color:status.type==='success'?'#6ecf6e':(status.type==='error'?'#ff6b6b':'var(--c-accent)'),
           }}>{status.msg}</div>
         )}
       </div>
@@ -752,44 +923,44 @@ function ClaudePromptModal({ onClose, prompt, branchName, stats }) {
   };
 
   return (
-    <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
-      <div ref={ref} style={{background:'#242424',border:'1px solid #333333',borderRadius:14,padding:28,width:620,maxWidth:'90vw',maxHeight:'85vh',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'var(--c-shadow-60)',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
+      <div ref={ref} style={{background:'var(--c-surface-3)',border:'1px solid var(--c-border)',borderRadius:14,padding:28,width:620,maxWidth:'90vw',maxHeight:'85vh',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px var(--c-shadow-50)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <div>
-            <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0,display:'flex',alignItems:'center',gap:8}}>
+            <h2 style={{fontSize:20,fontWeight:600,color:'var(--c-text)',margin:0,display:'flex',alignItems:'center',gap:8}}>
               <span style={{fontSize:18}}>🤖</span> Claude Code Prompt
             </h2>
-            <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace",marginTop:4}}>
+            <div style={{fontSize:12,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",marginTop:4}}>
               Branch: {branchName} — {stats.pending} task{stats.pending===1?'':'s'} remaining
             </div>
           </div>
-          <button onClick={onClose} style={{border:'none',background:'transparent',color:'#555',fontSize:22,cursor:'pointer',padding:'0 4px'}}
-            onMouseEnter={e=>e.currentTarget.style.color='#fff'} onMouseLeave={e=>e.currentTarget.style.color='#555'}>×</button>
+          <button onClick={onClose} style={{border:'none',background:'transparent',color:'var(--c-text-dim)',fontSize:22,cursor:'pointer',padding:'0 4px'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-dim)'}>×</button>
         </div>
 
         <div style={{flex:1,overflow:'auto',marginBottom:16,position:'relative'}}>
           <textarea ref={textRef} readOnly value={prompt}
             style={{
-              width:'100%',minHeight:320,background:'#1a1a1a',border:'1px solid #333333',borderRadius:8,
-              color:'#d0d4e0',fontSize:12,lineHeight:'1.6',fontFamily:"'JetBrains Mono',monospace",
+              width:'100%',minHeight:320,background:'var(--c-bg)',border:'1px solid var(--c-border)',borderRadius:8,
+              color:'var(--c-text)',fontSize:12,lineHeight:'1.6',fontFamily:"'JetBrains Mono',monospace",
               padding:16,resize:'vertical',outline:'none',boxSizing:'border-box',
             }}
-            onFocus={e=>e.currentTarget.style.borderColor='#4a9eff'}
-            onBlur={e=>e.currentTarget.style.borderColor='#333333'}/>
+            onFocus={e=>e.currentTarget.style.borderColor='var(--c-accent)'}
+            onBlur={e=>e.currentTarget.style.borderColor='var(--c-border)'}/>
         </div>
 
         <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
           <button onClick={onClose}
-            style={{padding:'8px 18px',background:'transparent',border:'1px solid #333333',color:'#6a7090',
+            style={{padding:'8px 18px',background:'transparent',border:'1px solid var(--c-border)',color:'var(--c-text-cool-2)',
               borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor='#4a4a4a';e.currentTarget.style.color='#d0d4e0';}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor='#333333';e.currentTarget.style.color='#6a7090';}}>
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--c-border-strong)';e.currentTarget.style.color='var(--c-text)';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--c-border)';e.currentTarget.style.color='var(--c-text-cool-2)';}}>
             Close
           </button>
           <button onClick={handleCopy}
-            style={{padding:'8px 22px',background:copied?'rgba(110,207,110,0.15)':'rgba(74,158,255,0.12)',
-              border:'1px solid '+(copied?'rgba(110,207,110,0.3)':'rgba(74,158,255,0.3)'),
-              color:copied?'#6ecf6e':'#4a9eff',borderRadius:6,cursor:'pointer',
+            style={{padding:'8px 22px',background:copied?'rgba(110,207,110,0.15)':'var(--c-accent-12)',
+              border:'1px solid '+(copied?'rgba(110,207,110,0.3)':'var(--c-accent-30)'),
+              color:copied?'#6ecf6e':'var(--c-accent)',borderRadius:6,cursor:'pointer',
               fontSize:12,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",
               transition:'all 0.15s',display:'flex',alignItems:'center',gap:6}}>
             {copied ? '✓ Copied!' : '📋 Copy to Clipboard'}
@@ -823,47 +994,47 @@ function RecurrenceDropdown({task,onSelect,onClose}){
   };
 
   return(
-    <div ref={ref} style={{position:'absolute',bottom:'100%',right:0,zIndex:200,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:8,minWidth:220,marginBottom:6}}>
+    <div ref={ref} style={{position:'absolute',bottom:'100%',right:0,zIndex:200,background:'var(--c-surface-modal)',border:'1px solid var(--c-surface-hi)',borderRadius:8,boxShadow:'0 8px 32px var(--c-shadow-60)',padding:8,minWidth:220,marginBottom:6}}>
       {!showCustom?(
         <>
           {RECURRENCE_PRESETS.map(p=>(
             <button key={p.key} onClick={()=>handlePreset(p.key)}
-              style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'10px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-              onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'10px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-pale-2)'}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               <span style={{fontSize:16}}>{p.icon}</span><span>{p.label}</span>
             </button>
           ))}
           {task.recurrence&&(
             <button onClick={()=>onSelect(null)}
-              style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'10px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#555'}}
-              onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'10px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-dim)'}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               <span style={{fontSize:16}}>✕</span><span>Remove recurrence</span>
             </button>
           )}
         </>
       ):(
         <div style={{padding:'8px 0'}}>
-          <div style={{padding:'8px 12px',color:'#888',fontSize:12}}>Every</div>
+          <div style={{padding:'8px 12px',color:'var(--c-text-muted-9)',fontSize:12}}>Every</div>
           <div style={{display:'flex',gap:6,padding:'4px 12px',marginBottom:8}}>
             <input type="number" min="1" value={customInterval} onChange={e=>setCustomInterval(Math.max(1,parseInt(e.target.value)||1))}
-              style={{width:50,border:'1px solid #3a3a3a',borderRadius:4,padding:'4px 6px',background:'#1a1a1a',color:'#d0d4e0',fontSize:12}}/>
+              style={{width:50,border:'1px solid var(--c-surface-hi)',borderRadius:4,padding:'4px 6px',background:'var(--c-bg)',color:'var(--c-text)',fontSize:12}}/>
             <select value={customUnit} onChange={e=>setCustomUnit(e.target.value)}
-              style={{flex:1,border:'1px solid #3a3a3a',borderRadius:4,padding:'4px 6px',background:'#1a1a1a',color:'#d0d4e0',fontSize:12}}>
+              style={{flex:1,border:'1px solid var(--c-surface-hi)',borderRadius:4,padding:'4px 6px',background:'var(--c-bg)',color:'var(--c-text)',fontSize:12}}>
               <option value="days">days</option>
               <option value="weeks">weeks</option>
               <option value="months">months</option>
             </select>
           </div>
-          <div style={{padding:'8px 12px',color:'#888',fontSize:12}}>Until (optional)</div>
+          <div style={{padding:'8px 12px',color:'var(--c-text-muted-9)',fontSize:12}}>Until (optional)</div>
           <div style={{padding:'4px 12px',marginBottom:8}}>
             <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)}
-              style={{width:'100%',border:'1px solid #3a3a3a',borderRadius:4,padding:'4px 6px',background:'#1a1a1a',color:'#d0d4e0',fontSize:12}}/>
+              style={{width:'100%',border:'1px solid var(--c-surface-hi)',borderRadius:4,padding:'4px 6px',background:'var(--c-bg)',color:'var(--c-text)',fontSize:12}}/>
           </div>
           <div style={{display:'flex',gap:6,padding:'8px 12px'}}>
             <button onClick={()=>setShowCustom(false)}
-              style={{flex:1,border:'1px solid #333333',borderRadius:4,padding:'6px',cursor:'pointer',background:'transparent',color:'#888',fontSize:11,fontFamily:"'JetBrains Mono',monospace"}}>Back</button>
+              style={{flex:1,border:'1px solid var(--c-border)',borderRadius:4,padding:'6px',cursor:'pointer',background:'transparent',color:'var(--c-text-muted-9)',fontSize:11,fontFamily:"'JetBrains Mono',monospace"}}>Back</button>
             <button onClick={handleCustom}
-              style={{flex:1,border:'1px solid #4a9eff',borderRadius:4,padding:'6px',cursor:'pointer',background:'rgba(74,158,255,0.08)',color:'#4a9eff',fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:600}}>Set</button>
+              style={{flex:1,border:'1px solid var(--c-accent)',borderRadius:4,padding:'6px',cursor:'pointer',background:'var(--c-accent-08)',color:'var(--c-accent)',fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:600}}>Set</button>
           </div>
         </div>
       )}
@@ -879,16 +1050,16 @@ function CatDropdown({categories,onSelect,onClose}){
     document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
   },[onClose]);
   return(
-    <div ref={ref} style={{position:'absolute',top:36,left:0,zIndex:200,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
+    <div ref={ref} style={{position:'absolute',top:36,left:0,zIndex:200,background:'var(--c-surface-modal)',border:'1px solid var(--c-surface-hi)',borderRadius:8,boxShadow:'0 8px 32px var(--c-shadow-60)',padding:4,minWidth:170}}>
       {Object.entries(categories).map(([name,cfg])=>(
-        <button key={name} onClick={()=>onSelect(name)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-          onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        <button key={name} onClick={()=>onSelect(name)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-pale-2)'}}
+          onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
           <span style={{width:16,height:16,borderRadius:4,background:cfg.bg,flexShrink:0}}/><span>{name}</span>
         </button>
       ))}
-      <button onClick={()=>onSelect(null)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#555'}}
-        onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-        <span style={{width:16,height:16,borderRadius:4,border:'1px dashed #444',flexShrink:0}}/><span>None</span>
+      <button onClick={()=>onSelect(null)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-dim)'}}
+        onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        <span style={{width:16,height:16,borderRadius:4,border:'1px dashed var(--c-border-weak)',flexShrink:0}}/><span>None</span>
       </button>
     </div>
   );
@@ -912,13 +1083,13 @@ function StatusDropdown({onSelect,onClose}){
     {key:'s',label:'Skipped'},
   ];
   return(
-    <div ref={ref} style={{position:'absolute',top:40,left:0,zIndex:200,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
+    <div ref={ref} style={{position:'absolute',top:40,left:0,zIndex:200,background:'var(--c-surface-modal)',border:'1px solid var(--c-surface-hi)',borderRadius:8,boxShadow:'0 8px 32px var(--c-shadow-60)',padding:4,minWidth:170}}>
       {opts.map(o=>{
         const sc=STATUS_CONFIG[o.key]||STATUS_CONFIG[''];
         return(
-          <button key={o.key} onClick={()=>onSelect(o.key)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'8px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-            onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-            <span style={{width:24,height:24,borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,background:o.key?sc.bg:'#2a2a2a',color:o.key?sc.color:'#4a4a4a',border:o.key?'none':'2px solid #333333'}}>{o.key||'·'}</span>
+          <button key={o.key} onClick={()=>onSelect(o.key)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'8px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-pale-2)'}}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <span style={{width:24,height:24,borderRadius:5,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,background:o.key?sc.bg:'var(--c-surface-raised)',color:o.key?sc.color:'var(--c-border-strong)',border:o.key?'none':'2px solid var(--c-border)'}}>{o.key||'·'}</span>
             <span>{o.label}</span>
           </button>
         );
@@ -965,9 +1136,9 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
       onClick={()=>onSelect(task.id)} onDoubleClick={()=>onChangeStatus(task.id,task.status==='x'?'':'x')}
       style={{
         display:'flex',alignItems:'center',gap:10,padding:'4px 12px',paddingLeft:12+depth*28,
-        background:isSelected?'#2a2f3a':(task.status?s.rowBg:'#1a1a1a'),
+        background:isSelected?'var(--c-surface-cool)':(task.status?s.rowBg:'var(--c-bg)'),
         borderRadius:8,cursor:'grab',userSelect:'none',
-        border:isSelected?'1.5px solid #4a9eff':'1.5px solid #333333',
+        border:isSelected?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',
         transition:'all 0.15s ease',position:'relative',
         opacity:task.status==='s'?0.45:1,
         marginBottom:3,
@@ -975,7 +1146,7 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
 
       {/* Left accent bar — outline: click to add subtask; filled: has children, click to collapse/expand */}
       {(()=>{
-        const barColor=hasChildren?(task.collapsed?'#4a9eff':'#6ecf6e'):(s.color||'#555');
+        const barColor=hasChildren?(task.collapsed?'var(--c-accent)':'#6ecf6e'):(s.color||'var(--c-text-dim)');
         return(
           <div onClick={e=>{e.stopPropagation();if(hasChildren)onToggleCollapse(task.id);else if(depth<3)onAddSubtask(task.id);}}
             style={{position:'absolute',left:0,top:0,bottom:0,width:5,
@@ -991,15 +1162,15 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
       })()}
 
       {/* Order number */}
-      {showOrder&&<span style={{width:24,textAlign:'right',fontSize:14,fontFamily:"'JetBrains Mono',monospace",color:'#606060',fontWeight:600,flexShrink:0}}>{idx}</span>}
+      {showOrder&&<span style={{width:24,textAlign:'right',fontSize:14,fontFamily:"'JetBrains Mono',monospace",color:'var(--c-text-muted)',fontWeight:600,flexShrink:0}}>{idx}</span>}
 
       {/* Status badge - click for dropdown, double-click for instant x */}
       <div style={{position:'relative',flexShrink:0}}>
         <span onClick={handleStatusClick} onDoubleClick={e=>{e.stopPropagation();onChangeStatus(task.id,task.status==='x'?'':'x');}} style={{
           width:30,height:30,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
           fontSize:17,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",cursor:'pointer',
-          background:task.status?s.bg:'#2a2a2a',color:task.status?s.color:'#4a4a4a',
-          border:task.status?'none':'2px solid #333333',
+          background:task.status?s.bg:'var(--c-surface-raised)',color:task.status?s.color:'var(--c-border-strong)',
+          border:task.status?'none':'2px solid var(--c-border)',
           transition:'all 0.15s',
         }}>{task.status||'·'}</span>
         {statusOpen&&<StatusDropdown onSelect={st=>{onChangeStatus(task.id,st);setStatusOpen(false);}} onClose={()=>setStatusOpen(false)}/>}
@@ -1010,11 +1181,11 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         {editing?(
           <input ref={inp} value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={donEdit}
             onKeyDown={e=>{if(e.key==='Enter')donEdit();if(e.key==='Escape')setEditing(false);}}
-            style={{border:'none',outline:'none',background:'#1a1a1a',padding:'4px 8px',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,borderRadius:4,boxShadow:'0 0 0 2px #4a9eff',color:'#e0e0e0',width:'100%'}}/>
+            style={{border:'none',outline:'none',background:'var(--c-bg)',padding:'4px 8px',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,borderRadius:4,boxShadow:'0 0 0 2px var(--c-accent)',color:'var(--c-text-pale)',width:'100%'}}/>
         ):(
           <span onClick={e=>{e.stopPropagation();setEditing(true);setEditVal(task.title);}} style={{
             fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",
-            color:task.status==='x'?'#5a8a5a':(task.status==='s'?'#555':'#d0d4e0'),
+            color:task.status==='x'?'#5a8a5a':(task.status==='s'?'var(--c-text-dim)':'var(--c-text)'),
             textDecoration:task.status==='x'?'line-through':'none',
             overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.35,
             fontWeight:task.status==='u'?600:400,cursor:'text',display:'inline',
@@ -1025,27 +1196,27 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
       {/* Add subtask button (visible when selected, depth < 3) */}
       {isSelected&&depth<3&&(
         <button onClick={e=>{e.stopPropagation();onAddSubtask(task.id);}}
-          style={{border:'1px dashed #4a9eff44',borderRadius:5,padding:'2px 8px',fontSize:11,
-            color:'#4a9eff',background:'transparent',cursor:'pointer',flexShrink:0,
+          style={{border:'1px dashed var(--c-accent-30)',borderRadius:5,padding:'2px 8px',fontSize:11,
+            color:'var(--c-accent)',background:'transparent',cursor:'pointer',flexShrink:0,
             fontFamily:"'JetBrains Mono',monospace",fontWeight:600,transition:'all 0.15s'}}
-          onMouseEnter={e=>{e.currentTarget.style.background='rgba(74,158,255,0.12)';e.currentTarget.style.borderColor='#4a9eff88';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='#4a9eff44';}}>
+          onMouseEnter={e=>{e.currentTarget.style.background='var(--c-accent-12)';e.currentTarget.style.borderColor='var(--c-accent)';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='var(--c-accent-30)';}}>
           + subtask
         </button>
       )}
 
       {/* Auto-return countdown + recurrence indicator */}
       <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-        {task.recurrence&&<span style={{fontSize:12,color:'#888',fontFamily:"'JetBrains Mono',monospace"}}>🔁</span>}
+        {task.recurrence&&<span style={{fontSize:12,color:'var(--c-text-muted-9)',fontFamily:"'JetBrains Mono',monospace"}}>🔁</span>}
         {retInfo&&task.autoReturn&&<span style={{fontSize:12,color:s.color,fontFamily:"'JetBrains Mono',monospace",opacity:0.7}}>↩ {retInfo}</span>}
       </div>
 
       {/* Category pill */}
       <div style={{position:'relative',flexShrink:0}}>
         {catCfg?(
-          <button onClick={e=>{e.stopPropagation();setCatOpen(!catOpen);}} style={{border:'none',borderRadius:5,padding:'3px 10px',fontSize:12,background:catCfg.bg,cursor:'pointer',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:catCfg.text||'#222'}}>{task.category}</button>
+          <button onClick={e=>{e.stopPropagation();setCatOpen(!catOpen);}} style={{border:'none',borderRadius:5,padding:'3px 10px',fontSize:12,background:catCfg.bg,cursor:'pointer',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:catCfg.text||'var(--c-surface-2)'}}>{task.category}</button>
         ):(
-          <button onClick={e=>{e.stopPropagation();setCatOpen(!catOpen);}} style={{border:'1.5px dashed #333',borderRadius:5,padding:'3px 8px',fontSize:12,color:'#444',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}}>+</button>
+          <button onClick={e=>{e.stopPropagation();setCatOpen(!catOpen);}} style={{border:'1.5px dashed var(--c-border)',borderRadius:5,padding:'3px 8px',fontSize:12,color:'var(--c-border-weak)',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}}>+</button>
         )}
         {catOpen&&<CatDropdown categories={categories} onSelect={c=>{onUpdate({...task,category:c});setCatOpen(false);}} onClose={()=>setCatOpen(false)}/>}
       </div>
@@ -1055,18 +1226,18 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         {task.dueDate?(
           <>
             <span style={{fontSize:12,fontFamily:"'JetBrains Mono',monospace",padding:'3px 8px',borderRadius:5,
-              background:overdue?'#4a1a1a':(soon?'#3a3520':'#2e2e2e'),
-              color:overdue?'#ff6b6b':(soon?'#f0c040':'#5a6080'),
+              background:overdue?'#4a1a1a':(soon?'#3a3520':'var(--c-surface-elev)'),
+              color:overdue?'#ff6b6b':(soon?'#f0c040':'var(--c-text-cool-3)'),
             }}>{new Date(task.dueDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
             <button onClick={e=>{e.stopPropagation();onUpdate({...task,dueDate:null});}}
-              style={{border:'none',background:'transparent',cursor:'pointer',color:'#444',fontSize:16,padding:'0 2px',lineHeight:1}}
-              onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='#444'} title="Remove due date">×</button>
+              style={{border:'none',background:'transparent',cursor:'pointer',color:'var(--c-border-weak)',fontSize:16,padding:'0 2px',lineHeight:1}}
+              onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-weak)'} title="Remove due date">×</button>
           </>
         ):(
           <>
             <button onClick={e=>{e.stopPropagation();setDuePicker(!duePicker);}}
-              style={{border:'1px dashed #3a3a3a',borderRadius:5,padding:'3px 8px',fontSize:12,color:'#555555',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}} title="Add due date">📅</button>
-            {duePicker&&<input type="date" autoFocus style={{position:'absolute',top:32,right:0,zIndex:200,background:'#2c2c2c',border:'1px solid #333',borderRadius:6,padding:8,fontSize:13,color:'#ccc',colorScheme:'dark'}}
+              style={{border:'1px dashed var(--c-surface-hi)',borderRadius:5,padding:'3px 8px',fontSize:12,color:'var(--c-text-dim-2)',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}} title="Add due date">📅</button>
+            {duePicker&&<input type="date" autoFocus style={{position:'absolute',top:32,right:0,zIndex:200,background:'var(--c-surface-modal)',border:'1px solid var(--c-border)',borderRadius:6,padding:8,fontSize:13,color:'var(--c-text-pale-2)',colorScheme:'dark'}}
               onChange={e=>{if(e.target.value)onUpdate({...task,dueDate:e.target.value});setDuePicker(false);}} onBlur={()=>setDuePicker(false)}/>}
           </>
         )}
@@ -1079,7 +1250,7 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
           {task.dateCompleted&&<span>✓ {fmt(task.dateCompleted)}</span>}
         </div>
       ):(
-        <span style={{fontSize:11,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:100,textAlign:'right'}}>{fmt(task.dateAdded)}</span>
+        <span style={{fontSize:11,color:'var(--c-border-strong)',fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:100,textAlign:'right'}}>{fmt(task.dateAdded)}</span>
       )}
 
 
@@ -1091,28 +1262,28 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
 function CategoryManager({categories,onUpdate}){
   const[nn,setNn]=useState('');
   const[nc,setNc]=useState('#A0F4C8');
-  const add=()=>{const n=nn.trim();if(!n||categories[n])return;onUpdate({...categories,[n]:{bg:nc,text:'#222'}});setNn('');setNc('#A0F4C8');};
+  const add=()=>{const n=nn.trim();if(!n||categories[n])return;onUpdate({...categories,[n]:{bg:nc,text:'var(--c-surface-2)'}});setNn('');setNc('#A0F4C8');};
   return(
     <div style={{padding:24,display:'flex',flexDirection:'column',gap:16,maxWidth:500}}>
-      <h2 style={{fontSize:20,fontWeight:600,color:'#d0d4e0',margin:0}}>Manage Categories</h2>
-      <p style={{fontSize:14,color:'#5a6080',margin:0}}>Add, remove, or change colors for your task categories.</p>
+      <h2 style={{fontSize:20,fontWeight:600,color:'var(--c-text)',margin:0}}>Manage Categories</h2>
+      <p style={{fontSize:14,color:'var(--c-text-cool-3)',margin:0}}>Add, remove, or change colors for your task categories.</p>
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
         {Object.entries(categories).map(([name,cfg])=>(
-          <div key={name} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:'#242424',borderRadius:8,border:'1px solid #2e2e2e'}}>
+          <div key={name} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:'var(--c-surface-3)',borderRadius:8,border:'1px solid var(--c-surface-elev)'}}>
             <input type="color" value={cfg.bg} onChange={e=>onUpdate({...categories,[name]:{...cfg,bg:e.target.value}})} style={{width:32,height:32,border:'none',borderRadius:5,padding:0}}/>
-            <span style={{flex:1,fontSize:16,color:'#d0d4e0',fontWeight:500}}>{name}</span>
-            <span style={{fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:cfg.text||'#222',background:cfg.bg,padding:'2px 8px',borderRadius:4,fontWeight:600}}>{name}</span>
+            <span style={{flex:1,fontSize:16,color:'var(--c-text)',fontWeight:500}}>{name}</span>
+            <span style={{fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:cfg.text||'var(--c-surface-2)',background:cfg.bg,padding:'2px 8px',borderRadius:4,fontWeight:600}}>{name}</span>
             <button onClick={()=>{const n={...categories};delete n[name];onUpdate(n);}}
-              style={{border:'none',background:'transparent',cursor:'pointer',color:'#555555',fontSize:18,padding:'0 4px'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='#555555'}>×</button>
+              style={{border:'none',background:'transparent',cursor:'pointer',color:'var(--c-text-dim-2)',fontSize:18,padding:'0 4px'}}
+              onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-dim-2)'}>×</button>
           </div>
         ))}
       </div>
       <div style={{display:'flex',gap:10,alignItems:'center',marginTop:8}}>
         <input type="color" value={nc} onChange={e=>setNc(e.target.value)} style={{width:32,height:32,border:'none',borderRadius:5,padding:0}}/>
         <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="New category name..." onKeyDown={e=>{if(e.key==='Enter')add();}}
-          style={{flex:1,border:'1px solid #3a3a3a',borderRadius:6,padding:'8px 12px',fontSize:14,background:'#242424',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
-        <button onClick={add} style={{border:'none',borderRadius:6,padding:'8px 18px',fontSize:14,background:'#4a9eff',color:'#fff',cursor:'pointer',fontWeight:600}}>Add</button>
+          style={{flex:1,border:'1px solid var(--c-surface-hi)',borderRadius:6,padding:'8px 12px',fontSize:14,background:'var(--c-surface-3)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+        <button onClick={add} style={{border:'none',borderRadius:6,padding:'8px 18px',fontSize:14,background:'var(--c-accent)',color:'var(--c-text)',cursor:'pointer',fontWeight:600}}>Add</button>
       </div>
     </div>
   );
@@ -1330,7 +1501,7 @@ function computeEdges(positionedNodes, nodes) {
           fromId: n.parentId, toId: n.id,
           fromX: Math.round(pp.x + pp.width / 2), fromY: Math.round(pp.y + parentVisH),
           toX: Math.round(cp.x + cp.width / 2), toY: Math.round(cp.y),
-          parentColor: parentNode ? (parentNode.color || '#4a9eff') : '#4a9eff'
+          parentColor: parentNode ? (parentNode.color || 'var(--c-accent)') : 'var(--c-accent)'
         });
       }
     }
@@ -1363,7 +1534,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
   const totalNodeH = titleRowH + notesAreaH;
   const foHeight = totalNodeH + 32;
   const isChecked = node.checked;
-  const nodeColor = node.color || '#4a9eff';
+  const nodeColor = node.color || 'var(--c-accent)';
   const linkedTask = node.linkedTaskId ? tasks.find(t => t.id === node.linkedTaskId) : null;
   const linkedStatus = linkedTask ? linkedTask.status : null;
   const statusCfg = linkedStatus && STATUS_CONFIG[linkedStatus] ? STATUS_CONFIG[linkedStatus] : null;
@@ -1374,14 +1545,14 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
       <foreignObject x={position.x} y={position.y} width={nw+4} height={foHeight+4} style={{overflow:'visible'}}>
         <div style={{position:'relative',width:nw,height:foHeight}}>
           <div onMouseDown={e=>onStartDragNode(e, node.id)} style={{
-            width:nw,height:totalNodeH,background:isChecked?'#1a1a1a':'#242424',
-            border:'2px solid '+(isSelected?'#4a9eff':isChecked?'#2a4a2a':'#333333'),
+            width:nw,height:totalNodeH,background:isChecked?'var(--c-bg)':'var(--c-surface-3)',
+            border:'2px solid '+(isSelected?'var(--c-accent)':isChecked?'#2a4a2a':'var(--c-border)'),
             borderRadius:6,
             position:'relative',cursor:'grab',
-            boxShadow:isSelected?'0 0 12px rgba(74,158,255,0.3)':'none',
+            boxShadow:isSelected?'0 0 12px var(--c-accent-30)':'none',
             opacity:isChecked?0.55:1,
             transition:'border-color 0.2s, box-shadow 0.2s',fontFamily:"'IBM Plex Sans',sans-serif",
-            fontSize:isRoot?15:13,fontWeight:isRoot?600:500,color:isChecked?'#555':'#d0d4e0',
+            fontSize:isRoot?15:13,fontWeight:isRoot?600:500,color:isChecked?'var(--c-text-dim)':'var(--c-text)',
             overflow:'hidden',userSelect:'none',display:'flex',flexDirection:'column'
           }}>
             {/* Color accent bar */}
@@ -1390,7 +1561,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             <div style={{display:'flex',alignItems:'center',gap:8,padding:'0 8px',paddingLeft:12,paddingRight:hasChildren?32:8,height:titleRowH,flexShrink:0}}>
               <div onClick={e=>{e.stopPropagation();onToggleChecked();}}
                 style={{width:18,height:18,borderRadius:4,flexShrink:0,
-                  border:isChecked?'2px solid #6ecf6e':'2px solid #4a4a4a',
+                  border:isChecked?'2px solid #6ecf6e':'2px solid var(--c-border-strong)',
                   background:isChecked?'#2a4a2a':'transparent',
                   display:'flex',alignItems:'center',justifyContent:'center',
                   cursor:'pointer',transition:'all 0.15s',fontSize:11,fontWeight:700,
@@ -1410,7 +1581,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
               <div onClick={e=>{e.stopPropagation();if(!hasNotes&&!notesExpanded){onToggleNodeNotes(false);setEditingNotes(true);}else if(notesExpanded&&!hasNotes){setEditingNotes(false);onToggleNodeNotes(true);}else{onToggleNodeNotes(false);}}}
                 style={{cursor:'pointer',flexShrink:0,transition:'all 0.15s',display:'flex',alignItems:'center'}}
                 title={notesExpanded?'Hide notes':(hasNotes?'Show notes':'Add notes')}>
-                {(()=>{const iconColor=(hasNotes||notesExpanded)?nodeColor:'#666';return(
+                {(()=>{const iconColor=(hasNotes||notesExpanded)?nodeColor:'var(--c-text-muted-3)';return(
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <rect x="2" y="1" width="12" height="14" rx="1.5" stroke={iconColor} strokeWidth="1.5"/>
                   <line x1="5" y1="5" x2="11" y2="5" stroke={iconColor} strokeWidth="1.2" strokeLinecap="round"/>
@@ -1422,20 +1593,20 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             {/* Notes body — fills remaining space when expanded */}
             {notesExpanded && (
               editingNotes ? (
-                <div style={{flex:1,borderTop:'1px solid #333333',marginLeft:12,marginRight:8,paddingTop:4,minHeight:0,display:'flex',flexDirection:'column'}}
+                <div style={{flex:1,borderTop:'1px solid var(--c-border)',marginLeft:12,marginRight:8,paddingTop:4,minHeight:0,display:'flex',flexDirection:'column'}}
                   onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
                   <textarea ref={notesInputRef} value={notesVal} onChange={e=>setNotesVal(e.target.value)}
                     onBlur={finishNotesEdit}
                     onKeyDown={e=>{if(e.key==='Escape'){setEditingNotes(false);setNotesVal(node.notes||'');if(!node.notes?.trim()&&node.notesExpanded)onToggleNodeNotes(true);}}}
-                    style={{flex:1,border:'none',outline:'none',background:'transparent',color:'#d0d4e0',
+                    style={{flex:1,border:'none',outline:'none',background:'transparent',color:'var(--c-text)',
                       fontSize:11,lineHeight:'1.4',fontFamily:"'IBM Plex Sans',sans-serif",
                       padding:'2px 0 6px',resize:'none',minHeight:0,width:'100%',cursor:'text'}}/>
                 </div>
               ) : (
                 <div onDoubleClick={e=>{e.stopPropagation();setEditingNotes(true);}} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
-                  style={{flex:1,padding:'0 12px 6px',fontSize:11,color:hasNotes?'#8a9bb8':'#555',lineHeight:'1.4',
+                  style={{flex:1,padding:'0 12px 6px',fontSize:11,color:hasNotes?'var(--c-text-cool)':'var(--c-text-dim)',lineHeight:'1.4',
                     fontFamily:"'IBM Plex Sans',sans-serif",whiteSpace:'pre-wrap',wordWrap:'break-word',
-                    borderTop:'1px solid #333333',marginLeft:12,marginRight:8,paddingTop:4,
+                    borderTop:'1px solid var(--c-border)',marginLeft:12,marginRight:8,paddingTop:4,
                     overflow:'auto',minHeight:0,cursor:'text'}}>
                   {hasNotes ? node.notes : 'Double-click to add notes...'}
                 </div>
@@ -1445,7 +1616,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             {hasChildren&&<div onClick={e=>{e.stopPropagation();onToggleCollapse();}}
               style={{position:'absolute',right:8,top:titleRowH/2,transform:'translateY(-50%) rotateZ('+(node.collapsed?'0deg':'90deg')+')',
                 width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',
-                cursor:'pointer',color:'#606060',transition:'transform 0.2s',fontSize:10}}>▶</div>}
+                cursor:'pointer',color:'var(--c-text-muted)',transition:'transform 0.2s',fontSize:10}}>▶</div>}
             {/* Resize handle — inside the node border, bottom-right corner */}
             <div onMouseDown={e=>{e.stopPropagation();onStartResizeNode(e, node.id);}}
               style={{position:'absolute',bottom:2,right:2,width:12,height:12,
@@ -1463,7 +1634,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             <div onClick={e=>{e.stopPropagation();onAddChild();}}
               style={{width:24,height:24,background:nodeColor,borderRadius:'50%',
                 display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
-                color:'#1a1a1a',fontSize:14,fontWeight:'bold'}}>+</div>
+                color:'var(--c-bg)',fontSize:14,fontWeight:'bold'}}>+</div>
             {!node.linkedTaskId && (
               <div onClick={e=>{e.stopPropagation();onAddToTasks();}} title="Add to Tasks"
                 style={{height:24,padding:'0 8px',background:'#2a4a2a',borderRadius:12,
@@ -1481,7 +1652,7 @@ function MindmapEdge({ edge }) {
   const dy = edge.toY - edge.fromY;
   const off = Math.max(dy * 0.4, 30);
   const d = `M ${edge.fromX} ${edge.fromY} C ${edge.fromX} ${edge.fromY+off}, ${edge.toX} ${edge.toY-off}, ${edge.toX} ${edge.toY}`;
-  const stroke = edge.parentColor || '#333333';
+  const stroke = edge.parentColor || 'var(--c-border)';
   return <path d={d} stroke={stroke} strokeWidth="2" fill="none" strokeLinecap="round" pointerEvents="none"/>;
 }
 
@@ -1492,12 +1663,12 @@ function MindmapNodeEditor({ node, position, onSave, onCancel }) {
   const nw = position.width || 200, nh = position.height || 54;
   return (
     <foreignObject x={position.x} y={position.y} width={nw} height={nh} style={{overflow:'visible'}}>
-      <div style={{width:nw,height:nh,background:'#242424',border:'2px solid #4a9eff',borderRadius:6,
-        display:'flex',alignItems:'center',padding:'0 16px',boxShadow:'0 0 12px rgba(74,158,255,0.3)'}}>
+      <div style={{width:nw,height:nh,background:'var(--c-surface-3)',border:'2px solid var(--c-accent)',borderRadius:6,
+        display:'flex',alignItems:'center',padding:'0 16px',boxShadow:'0 0 12px var(--c-accent-30)'}}>
         <input ref={ref} type="text" value={val} onChange={e=>setVal(e.target.value)}
           onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSave(val);}else if(e.key==='Escape'){e.preventDefault();onCancel();}}}
           onBlur={()=>onCancel()} onClick={e=>e.stopPropagation()}
-          style={{width:'100%',background:'transparent',border:'none',color:'#d0d4e0',
+          style={{width:'100%',background:'transparent',border:'none',color:'var(--c-text)',
             fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:500,outline:'none',padding:0}}/>
       </div>
     </foreignObject>
@@ -1520,14 +1691,14 @@ function useMindmap(sbSession) {
     // was empty (e.g. Firefox cleared site data on close). Initial Supabase
     // sync drops it if the cloud already has real projects. Flag is stripped
     // the moment the user edits nodes or renames the project.
-    const def = [{ id: pid, name: 'My Project', color: '#4a9eff', _autoDefault: true }];
+    const def = [{ id: pid, name: 'My Project', color: 'var(--c-accent)', _autoDefault: true }];
     saveLS(MM_PROJECTS_KEY, def);
     const old = loadLS('taskflow-mindmap', null);
     if (old && Array.isArray(old) && old.length > 0) {
       saveLS(MM_DATA_PREFIX + pid, old.map(n => ({ notes:'', checked:false, linkedTaskId:null, ...n })));
     } else {
       const rid = uuid();
-      saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:'My Project', color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }]);
+      saveLS(MM_DATA_PREFIX + pid, [{ id:rid, parentId:null, title:'My Project', color:'var(--c-accent)', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }]);
     }
     return def;
   });
@@ -1542,7 +1713,7 @@ function useMindmap(sbSession) {
     return loadLS(MM_DATA_PREFIX + pid, []).map(n => ({ notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null, ...n }));
   });
   const [selectedId, setSelectedId] = useState(null);
-  const [defaultNodeColor, setDefaultNodeColor] = useState('#4a9eff');
+  const [defaultNodeColor, setDefaultNodeColor] = useState('var(--c-accent)');
 
   // Refs track current values without stale closures — always up to date
   const activeProjectIdRef = useRef(activeProjectId);
@@ -1595,9 +1766,9 @@ function useMindmap(sbSession) {
 
   const addProject = useCallback((name = 'New Project') => {
     const pid = uuid(), rid = uuid();
-    const np = [...projects, { id:pid, name, color:'#4a9eff' }];
+    const np = [...projects, { id:pid, name, color:'var(--c-accent)' }];
     persistProjects(np);
-    const initNodes = [{ id:rid, parentId:null, title:name, color:'#4a9eff', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }];
+    const initNodes = [{ id:rid, parentId:null, title:name, color:'var(--c-accent)', collapsed:false, children:[], notes:'', checked:false, linkedTaskId:null, notesExpanded:false, customX:null, customY:null, customWidth:null, customHeight:null }];
     saveLS(MM_DATA_PREFIX + pid, initNodes);
     if(sbSession) debouncedSaveSB(MM_DATA_PREFIX + pid, initNodes);
     switchProject(pid);
@@ -1632,13 +1803,13 @@ function useMindmap(sbSession) {
         if (session) deleteSB(MM_DATA_PREFIX + p.id);
       });
       /* Save imported projects and their nodes */
-      const projList = importedProjects.map(p => ({ id: p.id, name: p.name, color: p.color || '#4a9eff' }));
+      const projList = importedProjects.map(p => ({ id: p.id, name: p.name, color: p.color || 'var(--c-accent)' }));
       importedProjects.forEach(p => {
         let importedNodes = p.nodes || [];
         /* Safety: ensure at least a root node exists */
         if (!importedNodes.length || !importedNodes.find(n => !n.parentId)) {
           const rid = uuid();
-          importedNodes = [{ id: rid, parentId: null, title: p.name || 'Root', color: p.color || '#4a9eff', collapsed: false, children: [], notes: '', checked: false, linkedTaskId: null, notesExpanded: false, customX: null, customY: null, customWidth: null, customHeight: null }];
+          importedNodes = [{ id: rid, parentId: null, title: p.name || 'Root', color: p.color || 'var(--c-accent)', collapsed: false, children: [], notes: '', checked: false, linkedTaskId: null, notesExpanded: false, customX: null, customY: null, customWidth: null, customHeight: null }];
         }
         saveLS(MM_DATA_PREFIX + p.id, importedNodes);
         if (session) saveSB(MM_DATA_PREFIX + p.id, importedNodes);
@@ -1665,9 +1836,9 @@ function useMindmap(sbSession) {
         /* Safety: ensure at least a root node exists */
         if (!nodes.length || !nodes.find(n => !n.parentId)) {
           const rid = uuid();
-          nodes = [{ id: rid, parentId: null, title: name, color: ip.color || '#4a9eff', collapsed: false, children: [], notes: '', checked: false, linkedTaskId: null, notesExpanded: false, customX: null, customY: null, customWidth: null, customHeight: null }];
+          nodes = [{ id: rid, parentId: null, title: name, color: ip.color || 'var(--c-accent)', collapsed: false, children: [], notes: '', checked: false, linkedTaskId: null, notesExpanded: false, customX: null, customY: null, customWidth: null, customHeight: null }];
         }
-        newProjects.push({ id: newId, name, color: ip.color || '#4a9eff' });
+        newProjects.push({ id: newId, name, color: ip.color || 'var(--c-accent)' });
         existingNames.add(name);
         saveLS(MM_DATA_PREFIX + newId, nodes);
         if (session) saveSB(MM_DATA_PREFIX + newId, nodes);
@@ -2006,27 +2177,27 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
           display:'flex',alignItems:'center',gap:6,
           padding:'5px 8px 5px '+(8 + depth * 14)+'px',
           cursor:'pointer',
-          background:isSelected?'rgba(74,158,255,0.12)':'transparent',
-          borderLeft:isSelected?'2px solid #4a9eff':'2px solid transparent',
+          background:isSelected?'var(--c-accent-12)':'transparent',
+          borderLeft:isSelected?'2px solid var(--c-accent)':'2px solid transparent',
           transition:'all 0.12s',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",
-          color:isSelected?'#d0d4e0':node.checked?'#6a6a6a':'#9aa4bd',
+          color:isSelected?'var(--c-text)':node.checked?'var(--c-text-muted-2)':'var(--c-text-secondary-5)',
         }}
-        onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}
+        onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background='var(--c-white-03)';}}
         onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background='transparent';}}>
         {hasChildren?(
           <span onClick={e=>{e.stopPropagation();onToggleExpand(nodeId);}}
             style={{width:14,height:14,display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:9,color:'#9a9a9a',cursor:'pointer',transition:'transform 0.15s',flexShrink:0,
+              fontSize:9,color:'var(--c-text-secondary-4)',cursor:'pointer',transition:'transform 0.15s',flexShrink:0,
               transform:isExpanded?'rotate(90deg)':'rotate(0deg)'}}>▶</span>
         ):(<span style={{width:14,height:14,flexShrink:0}}/>)}
         {node.checked ? (
           <span style={{fontSize:12,color:'#6ecf6e',flexShrink:0,fontWeight:700}}>✓</span>
         ) : (
-          <span style={{width:7,height:7,borderRadius:'50%',background:node.color||'#4a9eff',flexShrink:0}}/>
+          <span style={{width:7,height:7,borderRadius:'50%',background:node.color||'var(--c-accent)',flexShrink:0}}/>
         )}
         <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
           fontWeight:depth===0?600:400,textDecoration:node.checked?'line-through':'none'}}>{node.title}</span>
-        {hasChildren&&<span style={{fontSize:12,color:'#858585',fontFamily:"'JetBrains Mono',monospace"}}>{node.children.length}</span>}
+        {hasChildren&&<span style={{fontSize:12,color:'var(--c-text-muted-8)',fontFamily:"'JetBrains Mono',monospace"}}>{node.children.length}</span>}
       </div>
       {hasChildren && isExpanded && node.children.map(childId => (
         <MindmapTreeItem key={childId} nodeId={childId} nodes={nodes} depth={depth+1}
@@ -2251,11 +2422,11 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
 
   return (
     <div tabIndex={0} ref={canvasRef}
-      style={{display:'flex',flexDirection:'column',flex:1,height:'100%',background:'#1a1a1a',overflow:'hidden',outline:'none',position:'relative'}}
+      style={{display:'flex',flexDirection:'column',flex:1,height:'100%',background:'var(--c-bg)',overflow:'hidden',outline:'none',position:'relative'}}
       onKeyDown={handleKeyDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
 
       {/* SVG Canvas */}
-      <svg ref={svgRef} style={{flex:1,width:'100%',height:'100%',background:'#1a1a1a',cursor:isPanning?'grabbing':'grab',userSelect:'none'}}
+      <svg ref={svgRef} style={{flex:1,width:'100%',height:'100%',background:'var(--c-bg)',cursor:isPanning?'grabbing':'grab',userSelect:'none'}}
         onWheel={handleWheel} onMouseDown={handleSvgMouseDown} onClick={handleSvgClick}>
         <g transform={`translate(${vt.x},${vt.y}) scale(${vt.scale})`}>
           {edges.map((edge,i)=><MindmapEdge key={'me-'+i} edge={edge}/>)}
@@ -2302,22 +2473,22 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       {/* Floating Fit button — bottom right */}
       <button onClick={fitToView} title="Fit to View"
         style={{position:'absolute',bottom:16,right:16,
-          padding:'8px 14px',background:'#242424',border:'1px solid #333333',color:'#d0d4e0',
+          padding:'8px 14px',background:'var(--c-surface-3)',border:'1px solid var(--c-border)',color:'var(--c-text)',
           borderRadius:6,cursor:'pointer',fontSize:12,fontWeight:600,
           fontFamily:"'JetBrains Mono',monospace",
-          boxShadow:'0 2px 12px rgba(0,0,0,0.4)',transition:'all 0.15s',
+          boxShadow:'0 2px 12px var(--c-shadow-40)',transition:'all 0.15s',
           display:'flex',alignItems:'center',gap:6}}
-        onMouseEnter={e=>{e.currentTarget.style.background='#1a1f30';e.currentTarget.style.borderColor='#4a9eff';}}
-        onMouseLeave={e=>{e.currentTarget.style.background='#242424';e.currentTarget.style.borderColor='#333333';}}>
+        onMouseEnter={e=>{e.currentTarget.style.background='var(--c-bg-cool)';e.currentTarget.style.borderColor='var(--c-accent)';}}
+        onMouseLeave={e=>{e.currentTarget.style.background='var(--c-surface-3)';e.currentTarget.style.borderColor='var(--c-border)';}}>
         ⊡ Fit
       </button>
 
       {/* Toast notification */}
       {toast && (
         <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
-          background:'#242424',border:'1px solid #333333',borderRadius:8,
-          padding:'10px 20px',fontSize:13,color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",
-          boxShadow:'0 4px 16px rgba(0,0,0,0.5)',
+          background:'var(--c-surface-3)',border:'1px solid var(--c-border)',borderRadius:8,
+          padding:'10px 20px',fontSize:13,color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",
+          boxShadow:'0 4px 16px var(--c-shadow-50)',
           animation:'fadeInUp 0.2s ease-out',whiteSpace:'nowrap',
           display:'flex',alignItems:'center',gap:8}}>
           <span style={{color:'#6ecf6e',fontWeight:600}}>✓</span> {toast}
@@ -2350,16 +2521,16 @@ function FixedCatDropdown({categories,onSelect,onClose,anchorRef}){
     document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
   },[onClose,anchorRef]);
   return ReactDOM.createPortal(
-    <div ref={ref} style={{position:'fixed',top:pos.top,left:pos.left,zIndex:9999,background:'#2c2c2c',border:'1px solid #3a3a3a',borderRadius:8,boxShadow:'0 8px 32px rgba(0,0,0,0.6)',padding:4,minWidth:170}}>
+    <div ref={ref} style={{position:'fixed',top:pos.top,left:pos.left,zIndex:9999,background:'var(--c-surface-modal)',border:'1px solid var(--c-surface-hi)',borderRadius:8,boxShadow:'0 8px 32px var(--c-shadow-60)',padding:4,minWidth:170}}>
       {Object.entries(categories).map(([name,cfg])=>(
-        <button key={name} onClick={()=>onSelect(name)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#ccc'}}
-          onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        <button key={name} onClick={()=>onSelect(name)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-pale-2)'}}
+          onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
           <span style={{width:16,height:16,borderRadius:4,background:cfg.bg,flexShrink:0}}/><span>{name}</span>
         </button>
       ))}
-      <button onClick={()=>onSelect(null)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'#555'}}
-        onMouseEnter={e=>e.currentTarget.style.background='#353535'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-        <span style={{width:16,height:16,borderRadius:4,border:'1px dashed #444',flexShrink:0}}/><span>None</span>
+      <button onClick={()=>onSelect(null)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',background:'transparent',padding:'9px 12px',cursor:'pointer',borderRadius:5,fontFamily:"'JetBrains Mono',monospace",fontSize:14,color:'var(--c-text-dim)'}}
+        onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-hover)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        <span style={{width:16,height:16,borderRadius:4,border:'1px dashed var(--c-border-weak)',flexShrink:0}}/><span>None</span>
       </button>
     </div>,
     document.body
@@ -2373,9 +2544,9 @@ function CalendarCatButton({task,categories,onUpdateTask}){
   return(
     <div ref={btnRef} style={{position:'relative',flexShrink:0}} onClick={e=>e.stopPropagation()}>
       {catCfg?(
-        <button onClick={()=>setOpen(!open)} style={{border:'none',borderRadius:4,padding:'2px 6px',fontSize:9,background:catCfg.bg,cursor:'pointer',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:catCfg.text||'#222'}}>{task.category}</button>
+        <button onClick={()=>setOpen(!open)} style={{border:'none',borderRadius:4,padding:'2px 6px',fontSize:9,background:catCfg.bg,cursor:'pointer',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:catCfg.text||'var(--c-surface-2)'}}>{task.category}</button>
       ):(
-        <button onClick={()=>setOpen(!open)} style={{border:'1px dashed #444',borderRadius:4,padding:'1px 5px',fontSize:9,color:'#555',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}}>+</button>
+        <button onClick={()=>setOpen(!open)} style={{border:'1px dashed var(--c-border-weak)',borderRadius:4,padding:'1px 5px',fontSize:9,color:'var(--c-text-dim)',background:'transparent',cursor:'pointer',fontFamily:"'JetBrains Mono',monospace"}}>+</button>
       )}
       {open&&<FixedCatDropdown categories={categories} anchorRef={btnRef} onSelect={c=>{onUpdateTask({...task,category:c});setOpen(false);}} onClose={()=>setOpen(false)}/>}
     </div>
@@ -2589,15 +2760,15 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           {/* Header */}
           <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20,justifyContent:'space-between'}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>‹</button>
-              <button onClick={goToday} style={{border:'1px solid #333333',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
-              <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>›</button>
-              <span style={{fontSize:16,fontWeight:600,color:'#d0d4e0',minWidth:180}}>{MONTH_NAMES[m]} {y}</span>
+              <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'var(--c-accent)',padding:'0 6px'}}>‹</button>
+              <button onClick={goToday} style={{border:'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'var(--c-accent)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
+              <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'var(--c-accent)',padding:'0 6px'}}>›</button>
+              <span style={{fontSize:16,fontWeight:600,color:'var(--c-text)',minWidth:180}}>{MONTH_NAMES[m]} {y}</span>
             </div>
             <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
-              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
-              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
+              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='day'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
+              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='week'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
+              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='month'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
             </div>
           </div>
 
@@ -2606,10 +2777,10 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             {Object.entries(categories).map(([name,cfg])=>(
               <button key={name} onClick={()=>setCatFilter(catFilter===name?null:name)}
                 style={{
-                  border:catFilter===name?'2px solid #fff':'1px solid transparent',
+                  border:catFilter===name?'2px solid var(--c-text)':'1px solid transparent',
                   borderRadius:5,padding:'4px 12px',fontSize:12,cursor:'pointer',
                   background:cfg.bg,fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
-                  color:cfg.text||'#222',transition:'all 0.15s',
+                  color:cfg.text||'var(--c-surface-2)',transition:'all 0.15s',
                   opacity:catFilter===name?1:(catFilter?0.35:0.7),
                 }}>{name}</button>
             ))}
@@ -2619,7 +2790,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           <div style={{flex:1,display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8,overflow:'auto'}}>
             {/* Day headers */}
             {DAY_NAMES.map(dn=>(
-              <div key={dn} style={{fontSize:11,fontWeight:600,color:'#444',textAlign:'center',padding:'8px 0',borderBottom:'1px solid #2a2a2a'}}>
+              <div key={dn} style={{fontSize:11,fontWeight:600,color:'var(--c-border-weak)',textAlign:'center',padding:'8px 0',borderBottom:'1px solid var(--c-surface-raised)'}}>
                 {dn}
               </div>
             ))}
@@ -2634,15 +2805,15 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
               return(
                 <div key={idx} style={{
                   minHeight:100,padding:8,borderRadius:8,
-                  background:isCurrentMonth?'#242424':'#1a1a1a',
-                  border:isToday?'2px solid #4a9eff':'1px solid #333333',
+                  background:isCurrentMonth?'var(--c-surface-3)':'var(--c-bg)',
+                  border:isToday?'2px solid var(--c-accent)':'1px solid var(--c-border)',
                   opacity:isCurrentMonth?1:0.4,
                   cursor:'pointer',
                   display:'flex',flexDirection:'column',
                   position:'relative',overflow:'hidden',
                 }}
                 onClick={()=>{setCurrentDate(new Date(cellDate));setCalMode('day');}}>
-                  <div style={{fontSize:isToday?13:11,fontWeight:isToday?600:400,color:isToday?'#4a9eff':'#666',marginBottom:4}}>
+                  <div style={{fontSize:isToday?13:11,fontWeight:isToday?600:400,color:isToday?'var(--c-accent)':'var(--c-text-muted-3)',marginBottom:4}}>
                     {cellDate.getDate()}
                   </div>
 
@@ -2653,15 +2824,15 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                         <div key={task.id} onClick={e=>{e.stopPropagation();setCurrentDate(new Date(cellDate));setCalMode('day');}}
                           style={{
                             fontSize:10,padding:'2px 6px',borderRadius:3,borderLeft:'3px solid '+(task.eventColor||s.color),
-                            background:task.eventColor?(task.eventColor+'22'):(task.category&&categories[task.category]?categories[task.category].bg+'22':'#2e2e2e'),
-                            color:'#9aa',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                            background:task.eventColor?(task.eventColor+'22'):(task.category&&categories[task.category]?categories[task.category].bg+'22':'var(--c-surface-elev)'),
+                            color:'var(--c-text-secondary-6)',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
                             fontWeight:500,
                           }}>
                           {task.title}
                         </div>
                       );
                     })}
-                    {cellTasks.length>3&&<div style={{fontSize:9,color:'#555',padding:'2px 6px'}}>+{cellTasks.length-3} more</div>}
+                    {cellTasks.length>3&&<div style={{fontSize:9,color:'var(--c-text-dim)',padding:'2px 6px'}}>+{cellTasks.length-3} more</div>}
                   </div>
                 </div>
               );
@@ -2693,15 +2864,15 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           {/* Header */}
           <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:20,justifyContent:'space-between'}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>‹</button>
-              <button onClick={goToday} style={{border:'1px solid #333333',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
-              <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>›</button>
-              <span style={{fontSize:16,fontWeight:600,color:'#d0d4e0',minWidth:180}}>{MONTH_NAMES[startDate.getMonth()]} {startDate.getDate()} - {MONTH_NAMES[endDate.getMonth()]} {endDate.getDate()}</span>
+              <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'var(--c-accent)',padding:'0 6px'}}>‹</button>
+              <button onClick={goToday} style={{border:'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'var(--c-accent)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
+              <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'var(--c-accent)',padding:'0 6px'}}>›</button>
+              <span style={{fontSize:16,fontWeight:600,color:'var(--c-text)',minWidth:180}}>{MONTH_NAMES[startDate.getMonth()]} {startDate.getDate()} - {MONTH_NAMES[endDate.getMonth()]} {endDate.getDate()}</span>
             </div>
             <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
-              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
-              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
+              <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='day'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
+              <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='week'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
+              <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='month'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
             </div>
           </div>
 
@@ -2710,10 +2881,10 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             {Object.entries(categories).map(([name,cfg])=>(
               <button key={name} onClick={()=>setCatFilter(catFilter===name?null:name)}
                 style={{
-                  border:catFilter===name?'2px solid #fff':'1px solid transparent',
+                  border:catFilter===name?'2px solid var(--c-text)':'1px solid transparent',
                   borderRadius:5,padding:'4px 12px',fontSize:12,cursor:'pointer',
                   background:cfg.bg,fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
-                  color:cfg.text||'#222',transition:'all 0.15s',
+                  color:cfg.text||'var(--c-surface-2)',transition:'all 0.15s',
                   opacity:catFilter===name?1:(catFilter?0.35:0.7),
                 }}>{name}</button>
             ))}
@@ -2722,22 +2893,22 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           {/* Week timeline grid — fits to screen */}
           <div ref={weekBodyRef} style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
             {/* Day headers — grid aligned with body */}
-            <div style={{display:'flex',borderBottom:'1px solid #2a2a2a',flexShrink:0}}>
+            <div style={{display:'flex',borderBottom:'1px solid var(--c-surface-raised)',flexShrink:0}}>
               <div style={{width:42,flexShrink:0}}/>
               {weekDates.map((weekDate,idx)=>{
                 const weekDateStr=weekDate.toLocaleDateString('en-CA');
                 const isToday=weekDateStr===todayStr;
                 return(
-                  <div key={idx} style={{flex:1,textAlign:'center',padding:'6px 2px',borderLeft:'1px solid #2a2a2a',position:'relative'}}>
+                  <div key={idx} style={{flex:1,textAlign:'center',padding:'6px 2px',borderLeft:'1px solid var(--c-surface-raised)',position:'relative'}}>
                     {isToday?(
-                      <div style={{display:'inline-flex',flexDirection:'column',alignItems:'center',background:'rgba(74,158,255,0.12)',borderRadius:8,padding:'2px 8px'}}>
-                        <div style={{fontSize:10,fontWeight:700,color:'#4a9eff'}}>{DAY_NAMES[weekDate.getDay()]}</div>
-                        <div style={{fontSize:13,fontWeight:700,color:'#4a9eff'}}>{weekDate.getDate()}</div>
+                      <div style={{display:'inline-flex',flexDirection:'column',alignItems:'center',background:'var(--c-accent-12)',borderRadius:8,padding:'2px 8px'}}>
+                        <div style={{fontSize:10,fontWeight:700,color:'var(--c-accent)'}}>{DAY_NAMES[weekDate.getDay()]}</div>
+                        <div style={{fontSize:13,fontWeight:700,color:'var(--c-accent)'}}>{weekDate.getDate()}</div>
                       </div>
                     ):(
                       <div style={{display:'inline-flex',flexDirection:'column',alignItems:'center',padding:'2px 8px'}}>
-                        <div style={{fontSize:10,fontWeight:600,color:'#444'}}>{DAY_NAMES[weekDate.getDay()]}</div>
-                        <div style={{fontSize:12,fontWeight:400,color:'#d0d4e0'}}>{weekDate.getDate()}</div>
+                        <div style={{fontSize:10,fontWeight:600,color:'var(--c-border-weak)'}}>{DAY_NAMES[weekDate.getDay()]}</div>
+                        <div style={{fontSize:12,fontWeight:400,color:'var(--c-text)'}}>{weekDate.getDate()}</div>
                       </div>
                     )}
                   </div>
@@ -2750,22 +2921,22 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
               const hasAllDay=weekDates.some(wd=>(tasksByDate[wd.toLocaleDateString('en-CA')]||[]).some(t=>!t.startTime&&!t.endTime));
               if(!hasAllDay)return null;
               return(
-                <div style={{display:'flex',borderBottom:'1px solid #2a2a2a',flexShrink:0}}>
+                <div style={{display:'flex',borderBottom:'1px solid var(--c-surface-raised)',flexShrink:0}}>
                   <div style={{width:42,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <span style={{fontSize:9,color:'#444',fontFamily:"'JetBrains Mono',monospace"}}>all</span>
+                    <span style={{fontSize:9,color:'var(--c-border-weak)',fontFamily:"'JetBrains Mono',monospace"}}>all</span>
                   </div>
                   {weekDates.map((weekDate,idx)=>{
                     const ds=weekDate.toLocaleDateString('en-CA');
                     const allDay=(tasksByDate[ds]||[]).filter(t=>!t.startTime&&!t.endTime);
                     return(
-                      <div key={idx} style={{flex:1,borderLeft:'1px solid #2a2a2a',padding:'3px 2px',display:'flex',flexDirection:'column',gap:2}}>
+                      <div key={idx} style={{flex:1,borderLeft:'1px solid var(--c-surface-raised)',padding:'3px 2px',display:'flex',flexDirection:'column',gap:2}}>
                         {allDay.map(task=>{
                           const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
                           return(
                             <div key={task.id} onClick={()=>onSelectTask(task.id)}
                               style={{fontSize:9,padding:'2px 4px',borderRadius:3,borderLeft:'2px solid '+(task.eventColor||s.color),
-                                background:task.eventColor?(task.eventColor+'22'):'#2e2e2e',
-                                color:'#9aa',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                background:task.eventColor?(task.eventColor+'22'):'var(--c-surface-elev)',
+                                color:'var(--c-text-secondary-6)',cursor:'pointer',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                               {task.title}
                             </div>
                           );
@@ -2779,13 +2950,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
             {/* Early morning collapsed bar */}
             {!earlyExpanded&&(
-              <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e'}} onClick={()=>setEarlyExpanded(true)}>
-                <div style={{width:42,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'#161616',borderRight:'1px solid #2a2a2a'}}>
-                  <span style={{fontSize:9,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▼</span>
+              <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--c-surface-raised)',cursor:'pointer',background:'var(--c-surface)'}} onClick={()=>setEarlyExpanded(true)}>
+                <div style={{width:42,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--c-bg-deep)',borderRight:'1px solid var(--c-surface-raised)'}}>
+                  <span style={{fontSize:9,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>▼</span>
                 </div>
                 <div style={{flex:1,display:'flex',alignItems:'center',padding:'4px 8px',gap:6}}>
-                  <span style={{fontSize:9,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>00:00 – 0{EARLY_HOUR}:00</span>
-                  <span style={{fontSize:9,color:'#444'}}>expand</span>
+                  <span style={{fontSize:9,color:'var(--c-text-dim)',fontFamily:"'JetBrains Mono',monospace"}}>00:00 – 0{EARLY_HOUR}:00</span>
+                  <span style={{fontSize:9,color:'var(--c-border-weak)'}}>expand</span>
                 </div>
               </div>
             )}
@@ -2793,13 +2964,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             {/* Timeline body — fits remaining height */}
             <div style={{flex:1,display:'flex',overflow:'hidden'}}>
               {/* Time gutter */}
-              <div style={{width:42,flexShrink:0,background:'#161616',borderRight:'1px solid #2a2a2a',overflow:'hidden',position:'relative'}}>
+              <div style={{width:42,flexShrink:0,background:'var(--c-bg-deep)',borderRight:'1px solid var(--c-surface-raised)',overflow:'hidden',position:'relative'}}>
                 <div style={{position:'relative',height:'100%'}}>
                   {Array.from({length:earlyExpanded?24:(24-EARLY_HOUR)}).map((_,i)=>{
                     const h=earlyExpanded?i:i+EARLY_HOUR;
                     return(
-                      <div key={h} style={{position:'absolute',top:((earlyExpanded?h:(h-EARLY_HOUR))/(earlyExpanded?24:(24-EARLY_HOUR))*100)+'%',left:0,right:0,height:(100/(earlyExpanded?24:(24-EARLY_HOUR)))+'%',borderBottom:'1px solid #2a2a2a',padding:'2px 3px',textAlign:'right'}}>
-                        <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace",color:'#606060'}}>
+                      <div key={h} style={{position:'absolute',top:((earlyExpanded?h:(h-EARLY_HOUR))/(earlyExpanded?24:(24-EARLY_HOUR))*100)+'%',left:0,right:0,height:(100/(earlyExpanded?24:(24-EARLY_HOUR)))+'%',borderBottom:'1px solid var(--c-surface-raised)',padding:'2px 3px',textAlign:'right'}}>
+                        <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace",color:'var(--c-text-muted)'}}>
                           {String(h).padStart(2,'0')}
                         </span>
                       </div>
@@ -2818,8 +2989,8 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                 const minToPct=min=>((min-startH*60)/(totalH*60))*100;
 
                 return(
-                  <div key={idx} style={{flex:1,position:'relative',borderLeft:'1px solid #2a2a2a',
-                    background:isToday?'rgba(74,158,255,0.03)':'transparent'}}
+                  <div key={idx} style={{flex:1,position:'relative',borderLeft:'1px solid var(--c-surface-raised)',
+                    background:isToday?'var(--c-accent-03)':'transparent'}}
                     onClick={e=>{
                       if(addingDate===weekDateStr)return;
                       if(e.target!==e.currentTarget&&!e.target.dataset.weekgridline)return;
@@ -2832,7 +3003,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                     {Array.from({length:totalH}).map((_,i)=>{
                       const h=startH+i;
                       return(
-                        <div key={h} data-weekgridline="true" style={{position:'absolute',top:(i/totalH*100)+'%',left:0,right:0,height:(100/totalH)+'%',borderBottom:'1px solid rgba(30,36,56,0.3)'}}/>
+                        <div key={h} data-weekgridline="true" style={{position:'absolute',top:(i/totalH*100)+'%',left:0,right:0,height:(100/totalH)+'%',borderBottom:'1px solid var(--c-accent-cool-30)'}}/>
                       );
                     })}
 
@@ -2860,15 +3031,15 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                           style={{
                             position:'absolute',top:topPct+'%',left:2,right:2,height:hPct+'%',minHeight:16,
                             background:task.eventColor?(task.eventColor+'33'):(catCfg?(catCfg.bg+'33'):'rgba(100,150,200,0.15)'),
-                            border:'1px solid '+(selId===task.id?'#4a9eff':(task.eventColor?(task.eventColor+'44'):(s.color+'44'))),
+                            border:'1px solid '+(selId===task.id?'var(--c-accent)':(task.eventColor?(task.eventColor+'44'):(s.color+'44'))),
                             borderRadius:3,padding:'1px 3px',cursor:'pointer',
                             overflow:'hidden',zIndex:5,
                             display:'flex',flexDirection:'column',
                           }}>
-                          <div style={{fontSize:9,fontWeight:600,color:'#d0d4e0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          <div style={{fontSize:9,fontWeight:600,color:'var(--c-text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                             {task.title}
                           </div>
-                          {hPct>4&&<div style={{fontSize:7,color:'#8a9bb8'}}>
+                          {hPct>4&&<div style={{fontSize:7,color:'var(--c-text-cool)'}}>
                             {task.startTime}{task.endTime?'-'+task.endTime:''}
                           </div>}
                         </div>
@@ -2877,13 +3048,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
                     {/* Add task form */}
                     {addingDate===weekDateStr&&(
-                      <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(minToPct(addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS),85)+'%',left:2,right:2,background:'#242424',border:'1px solid #4a9eff',borderRadius:4,padding:'6px',zIndex:20}}>
+                      <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(minToPct(addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS),85)+'%',left:2,right:2,background:'var(--c-surface-3)',border:'1px solid var(--c-accent)',borderRadius:4,padding:'6px',zIndex:20}}>
                         <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(weekDateStr);if(e.key==='Escape')cancelAdding();}}
                           placeholder="New task..." autoFocus
-                          style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,marginBottom:4}}/>
+                          style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,marginBottom:4}}/>
                         <div style={{display:'flex',gap:3}}>
-                          <button onClick={e=>{e.stopPropagation();handleAddTask(weekDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'#4a9eff',color:'#fff',fontSize:9,cursor:'pointer',fontWeight:600}}>Add</button>
-                          <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'3px',background:'transparent',color:'#666',fontSize:9,cursor:'pointer'}}>Cancel</button>
+                          <button onClick={e=>{e.stopPropagation();handleAddTask(weekDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'var(--c-accent)',color:'var(--c-text)',fontSize:9,cursor:'pointer',fontWeight:600}}>Add</button>
+                          <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'3px',background:'transparent',color:'var(--c-text-muted-3)',fontSize:9,cursor:'pointer'}}>Cancel</button>
                         </div>
                       </div>
                     )}
@@ -2894,9 +3065,9 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
             {/* Collapse button when expanded */}
             {earlyExpanded&&(
-              <div style={{flexShrink:0,borderTop:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e',display:'flex',alignItems:'center',padding:'3px 8px',gap:6}} onClick={()=>setEarlyExpanded(false)}>
-                <span style={{fontSize:9,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▲</span>
-                <span style={{fontSize:9,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>collapse early morning</span>
+              <div style={{flexShrink:0,borderTop:'1px solid var(--c-surface-raised)',cursor:'pointer',background:'var(--c-surface)',display:'flex',alignItems:'center',padding:'3px 8px',gap:6}} onClick={()=>setEarlyExpanded(false)}>
+                <span style={{fontSize:9,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>▲</span>
+                <span style={{fontSize:9,color:'var(--c-text-dim)',fontFamily:"'JetBrains Mono',monospace"}}>collapse early morning</span>
               </div>
             )}
           </div>
@@ -2970,7 +3141,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           style={{
             position:'absolute',top:top+'px',left:'4px',right:'4px',height:height+'px',
             background:task.eventColor?(task.eventColor+'33'):(catCfg?(catCfg.bg+'33'):'rgba(100,150,200,0.15)'),
-            border:'1px solid '+(selId===task.id?'#4a9eff':(task.eventColor?(task.eventColor+'66'):(s.color+'66'))),
+            border:'1px solid '+(selId===task.id?'var(--c-accent)':(task.eventColor?(task.eventColor+'66'):(s.color+'66'))),
             borderRadius:6,padding:'8px 10px',cursor:isEditing?'default':(isDragging?'grabbing':'grab'),
             display:'flex',flexDirection:'column',gap:4,overflow:'visible',
             transition:isDragging?'none':'all 0.15s',
@@ -2982,27 +3153,27 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             <div style={{display:'flex',flexDirection:'column',gap:4}} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
               <input value={editTitle} onChange={e=>setEditTitle(e.target.value)} autoFocus
                 onKeyDown={e=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')cancelEdit();}}
-                style={{border:'1px solid #4a9eff',borderRadius:4,padding:'3px 6px',fontSize:12,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:'100%'}}/>
+                style={{border:'1px solid var(--c-accent)',borderRadius:4,padding:'3px 6px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:'100%'}}/>
               <div style={{display:'flex',gap:4,alignItems:'center'}}>
                 <input type="time" value={editStart} onChange={e=>setEditStart(e.target.value)}
-                  style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
-                <span style={{fontSize:9,color:'#606060'}}>→</span>
+                  style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'2px 4px',fontSize:10,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
+                <span style={{fontSize:9,color:'var(--c-text-muted)'}}>→</span>
                 <input type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)}
-                  style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'2px 4px',fontSize:10,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
+                  style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'2px 4px',fontSize:10,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
               </div>
               <div style={{display:'flex',gap:3}}>
-                <button onClick={saveEdit} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'#4a9eff',color:'#fff',fontSize:10,cursor:'pointer',fontWeight:600}}>Save</button>
-                <button onClick={cancelEdit} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'3px',background:'transparent',color:'#666',fontSize:10,cursor:'pointer'}}>Cancel</button>
+                <button onClick={saveEdit} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'var(--c-accent)',color:'var(--c-text)',fontSize:10,cursor:'pointer',fontWeight:600}}>Save</button>
+                <button onClick={cancelEdit} style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'3px',background:'transparent',color:'var(--c-text-muted-3)',fontSize:10,cursor:'pointer'}}>Cancel</button>
               </div>
             </div>
           ):(
             <>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 <span onDoubleClick={e=>{e.stopPropagation();if(!didDragRef.current)startEdit();}}
-                  style={{fontSize:15,fontWeight:600,color:'#d0d4e0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'text'}}>
+                  style={{fontSize:15,fontWeight:600,color:'var(--c-text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'text'}}>
                   {task.title}
                 </span>
-                <span style={{fontSize:13,color:'#8a9bb8',whiteSpace:'nowrap',flexShrink:0,pointerEvents:'none'}}>
+                <span style={{fontSize:13,color:'var(--c-text-cool)',whiteSpace:'nowrap',flexShrink:0,pointerEvents:'none'}}>
                   {task.startTime}{task.endTime?' - '+task.endTime:''}
                 </span>
                 <span style={{flex:1}}/>
@@ -3013,7 +3184,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           {/* Resize handle */}
           {!isEditing&&<div onMouseDown={handleResizeStart}
             style={{position:'absolute',bottom:0,left:0,right:0,height:8,cursor:'ns-resize',background:'transparent',borderRadius:'0 0 6px 6px'}}
-            onMouseEnter={e=>{e.currentTarget.style.background='rgba(74,158,255,0.25)';}}
+            onMouseEnter={e=>{e.currentTarget.style.background='var(--c-accent-25)';}}
             onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}/>}
         </div>
       );
@@ -3022,24 +3193,24 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
     return(
       <div ref={containerRef} style={{display:'flex',height:'100%',flexDirection:'column',overflow:'hidden'}}>
         {/* Header */}
-        <div style={{padding:'16px 24px',borderBottom:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:16,justifyContent:'space-between'}}>
+        <div style={{padding:'16px 24px',borderBottom:'1px solid var(--c-surface-raised)',display:'flex',alignItems:'center',gap:16,justifyContent:'space-between'}}>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>‹</button>
-            <button onClick={goToday} style={{border:'1px solid #333333',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
-            <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'#4a9eff',padding:'0 6px'}}>›</button>
-            <span style={{fontSize:16,fontWeight:600,color:'#d0d4e0',minWidth:180}}>{DAY_NAMES_FULL[new Date(y,m,d).getDay()]}, {MONTH_NAMES[m]} {d}</span>
+            <button onClick={goPrev} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'var(--c-accent)',padding:'0 6px'}}>‹</button>
+            <button onClick={goToday} style={{border:'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:'transparent',cursor:'pointer',color:'var(--c-accent)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Today</button>
+            <button onClick={goNext} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:24,color:'var(--c-accent)',padding:'0 6px'}}>›</button>
+            <span style={{fontSize:16,fontWeight:600,color:'var(--c-text)',minWidth:180}}>{DAY_NAMES_FULL[new Date(y,m,d).getDay()]}, {MONTH_NAMES[m]} {d}</span>
           </div>
           <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='day'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
-            <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='week'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
-            <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid #4a9eff':'1px solid #333333',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',color:calMode==='month'?'#4a9eff':'#666',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
+            <button onClick={()=>setCalMode('day')} style={{border:calMode==='day'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='day'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='day'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Day</button>
+            <button onClick={()=>setCalMode('week')} style={{border:calMode==='week'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='week'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='week'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Week</button>
+            <button onClick={()=>setCalMode('month')} style={{border:calMode==='month'?'1.5px solid var(--c-accent)':'1px solid var(--c-border)',borderRadius:6,padding:'6px 14px',background:calMode==='month'?'var(--c-accent-08)':'transparent',cursor:'pointer',color:calMode==='month'?'var(--c-accent)':'var(--c-text-muted-3)',fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>Month</button>
           </div>
         </div>
 
         {/* All-day section */}
         {allDayTasks.length>0&&(
-          <div style={{padding:'12px 24px',borderBottom:'1px solid #2a2a2a',background:'#161616'}}>
-            <div style={{fontSize:12,fontWeight:600,color:'#4a4a4a',marginBottom:6}}>All day</div>
+          <div style={{padding:'12px 24px',borderBottom:'1px solid var(--c-surface-raised)',background:'var(--c-bg-deep)'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--c-border-strong)',marginBottom:6}}>All day</div>
             <div style={{display:'flex',flexDirection:'column',gap:4}}>
               {allDayTasks.map(task=>{
                 const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
@@ -3048,9 +3219,9 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                   <div key={task.id} onClick={()=>onSelectTask(task.id)}
                     style={{
                       fontSize:12,padding:'6px 10px',borderRadius:4,borderLeft:'3px solid '+s.color,
-                      background:catCfg?catCfg.bg+'22':'#2e2e2e',
-                      color:'#9aa',cursor:'pointer',display:'flex',alignItems:'center',gap:8,
-                      border:selId===task.id?'1px solid #4a9eff':'1px solid transparent',
+                      background:catCfg?catCfg.bg+'22':'var(--c-surface-elev)',
+                      color:'var(--c-text-secondary-6)',cursor:'pointer',display:'flex',alignItems:'center',gap:8,
+                      border:selId===task.id?'1px solid var(--c-accent)':'1px solid transparent',
                     }}>
                     <span style={{width:12,height:12,borderRadius:'50%',background:s.color,flexShrink:0}}/>
                     <span style={{flex:1}}>{task.title}</span>
@@ -3064,13 +3235,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
         {/* Early morning collapsed bar */}
         {!earlyExpanded&&(
-          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e'}} onClick={()=>setEarlyExpanded(true)}>
-            <div style={{width:60,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'#161616',borderRight:'1px solid #2a2a2a'}}>
-              <span style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▼</span>
+          <div style={{display:'flex',flexShrink:0,borderBottom:'1px solid var(--c-surface-raised)',cursor:'pointer',background:'var(--c-surface)'}} onClick={()=>setEarlyExpanded(true)}>
+            <div style={{width:60,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--c-bg-deep)',borderRight:'1px solid var(--c-surface-raised)'}}>
+              <span style={{fontSize:10,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>▼</span>
             </div>
             <div style={{flex:1,display:'flex',alignItems:'center',padding:'6px 12px',gap:8}}>
-              <span style={{fontSize:11,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>00:00 – 0{EARLY_HOUR}:00</span>
-              <span style={{fontSize:10,color:'#444'}}>expand</span>
+              <span style={{fontSize:11,color:'var(--c-text-dim)',fontFamily:"'JetBrains Mono',monospace"}}>00:00 – 0{EARLY_HOUR}:00</span>
+              <span style={{fontSize:10,color:'var(--c-border-weak)'}}>expand</span>
               {/* Show current time indicator if it falls in early morning */}
               {currentDateStr===todayStr&&timelineTopPx<EARLY_MINS&&(
                 <span style={{fontSize:10,color:'#ff6b6b',fontFamily:"'JetBrains Mono',monospace",marginLeft:'auto'}}>● {minToTime(Math.round(timelineTopPx))}</span>
@@ -3082,13 +3253,13 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
         {/* Timeline */}
         <div style={{flex:1,display:'flex',overflow:'hidden'}}>
           {/* Time gutter */}
-          <div ref={gutterRef} onScroll={()=>syncScroll('gutter')} style={{width:60,flexShrink:0,background:'#161616',borderRight:'1px solid #2a2a2a',overflow:'auto',scrollbarWidth:'none',msOverflowStyle:'none'}}>
+          <div ref={gutterRef} onScroll={()=>syncScroll('gutter')} style={{width:60,flexShrink:0,background:'var(--c-bg-deep)',borderRight:'1px solid var(--c-surface-raised)',overflow:'auto',scrollbarWidth:'none',msOverflowStyle:'none'}}>
             <div style={{position:'relative',height:(earlyExpanded?24:(24-EARLY_HOUR))*60}}>
               {Array.from({length:earlyExpanded?24:(24-EARLY_HOUR)}).map((_,i)=>{
                 const h=earlyExpanded?i:i+EARLY_HOUR;
                 return(
-                  <div key={h} style={{position:'absolute',top:(earlyExpanded?h:(h-EARLY_HOUR))*60+'px',left:0,right:0,height:60,borderBottom:'1px solid #2a2a2a',padding:'4px 4px',textAlign:'right'}}>
-                    <span style={{fontSize:10,fontFamily:"'JetBrains Mono',monospace",color:'#606060'}}>
+                  <div key={h} style={{position:'absolute',top:(earlyExpanded?h:(h-EARLY_HOUR))*60+'px',left:0,right:0,height:60,borderBottom:'1px solid var(--c-surface-raised)',padding:'4px 4px',textAlign:'right'}}>
+                    <span style={{fontSize:10,fontFamily:"'JetBrains Mono',monospace",color:'var(--c-text-muted)'}}>
                       {String(h).padStart(2,'0')}:00
                     </span>
                   </div>
@@ -3098,7 +3269,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
           </div>
 
           {/* Timeline area */}
-          <div ref={timelineRef} onScroll={()=>syncScroll('timeline')} style={{flex:1,position:'relative',overflow:'auto',background:'#1a1a1a'}}>
+          <div ref={timelineRef} onScroll={()=>syncScroll('timeline')} style={{flex:1,position:'relative',overflow:'auto',background:'var(--c-bg)'}}>
             <div style={{position:'relative',height:(earlyExpanded?24:(24-EARLY_HOUR))*60}} onClick={e=>{
               if(addingDate===currentDateStr||dragState)return;
               if(didDragRef.current)return;
@@ -3114,7 +3285,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
               {Array.from({length:earlyExpanded?24:(24-EARLY_HOUR)}).map((_,i)=>{
                 const h=earlyExpanded?i:i+EARLY_HOUR;
                 return(
-                  <div key={h} data-gridline="true" style={{position:'absolute',top:(earlyExpanded?h:(h-EARLY_HOUR))*60+'px',left:0,right:0,height:60,borderBottom:'1px solid rgba(30,36,56,0.5)'}}/>
+                  <div key={h} data-gridline="true" style={{position:'absolute',top:(earlyExpanded?h:(h-EARLY_HOUR))*60+'px',left:0,right:0,height:60,borderBottom:'1px solid var(--c-accent-cool-50)'}}/>
                 );
               })}
 
@@ -3145,16 +3316,16 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
               {/* Add task form */}
               {addingDate===currentDateStr&&(
-                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(((addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS)-(earlyExpanded?0:EARLY_MINS)),((earlyExpanded?24:(24-EARLY_HOUR))*60-100))+'px',left:'16px',right:'16px',background:'#242424',border:'1px solid #4a9eff',borderRadius:6,padding:'12px',zIndex:20}}>
+                <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(((addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS)-(earlyExpanded?0:EARLY_MINS)),((earlyExpanded?24:(24-EARLY_HOUR))*60-100))+'px',left:'16px',right:'16px',background:'var(--c-surface-3)',border:'1px solid var(--c-accent)',borderRadius:6,padding:'12px',zIndex:20}}>
                   <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(currentDateStr);if(e.key==='Escape')cancelAdding();}}
                     placeholder="New task..." autoFocus
-                    style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,marginBottom:8}}/>
-                  <div style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",marginBottom:8}}>
-                    {addStartTime}{addEndTime?' → '+addEndTime:''} <span style={{color:'#4a4a4a'}}>(drag to adjust)</span>
+                    style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,marginBottom:8}}/>
+                  <div style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",marginBottom:8}}>
+                    {addStartTime}{addEndTime?' → '+addEndTime:''} <span style={{color:'var(--c-border-strong)'}}>(drag to adjust)</span>
                   </div>
                   <div style={{display:'flex',gap:4}}>
-                    <button onClick={e=>{e.stopPropagation();handleAddTask(currentDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'6px',background:'#4a9eff',color:'#fff',fontSize:11,cursor:'pointer',fontWeight:600}}>Add</button>
-                    <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid #333',borderRadius:3,padding:'6px',background:'transparent',color:'#666',fontSize:11,cursor:'pointer'}}>Cancel</button>
+                    <button onClick={e=>{e.stopPropagation();handleAddTask(currentDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'6px',background:'var(--c-accent)',color:'var(--c-text)',fontSize:11,cursor:'pointer',fontWeight:600}}>Add</button>
+                    <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'6px',background:'transparent',color:'var(--c-text-muted-3)',fontSize:11,cursor:'pointer'}}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -3164,9 +3335,9 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
         {/* Collapse early morning toggle */}
         {earlyExpanded&&(
-          <div style={{flexShrink:0,borderTop:'1px solid #2a2a2a',cursor:'pointer',background:'#1e1e1e',display:'flex',alignItems:'center',padding:'4px 12px',gap:8}} onClick={()=>setEarlyExpanded(false)}>
-            <span style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>▲</span>
-            <span style={{fontSize:10,color:'#555',fontFamily:"'JetBrains Mono',monospace"}}>collapse early morning</span>
+          <div style={{flexShrink:0,borderTop:'1px solid var(--c-surface-raised)',cursor:'pointer',background:'var(--c-surface)',display:'flex',alignItems:'center',padding:'4px 12px',gap:8}} onClick={()=>setEarlyExpanded(false)}>
+            <span style={{fontSize:10,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>▲</span>
+            <span style={{fontSize:10,color:'var(--c-text-dim)',fontFamily:"'JetBrains Mono',monospace"}}>collapse early morning</span>
           </div>)}
       </div>
     );
@@ -3175,7 +3346,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
 
 /* ── Kbd helper ── */
 function K({children}){
-  return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid #3f3f3f',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'#2a2a2a',color:'#b0b0b0'}}>{children}</kbd>;
+  return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid var(--c-surface-hi-2)',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'var(--c-surface-raised)',color:'var(--c-text-secondary-3)'}}>{children}</kbd>;
 }
 
 /* ══════════════════════════════════════════
@@ -3192,6 +3363,9 @@ function TaskFlow({ session, onSignOut }){
   const[catFilter,setCatFilter]=useState(null);
   const[dragIdx,setDragIdx]=useState(null);
   const[sidebarOpen,setSidebarOpen]=useState(true);
+  const[theme,setTheme]=useState(()=>loadLS('taskflow-theme','dark'));
+  useEffect(()=>{document.documentElement.dataset.theme=theme;saveLS('taskflow-theme',theme);},[theme]);
+  const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
   const[showCatMgr,setShowCatMgr]=useState(false);
   const[showImportExport,setShowImportExport]=useState(false);
   const[showMmImportExport,setShowMmImportExport]=useState(false);
@@ -3536,31 +3710,31 @@ function TaskFlow({ session, onSignOut }){
       </div>}
 
       {/* ── Sidebar ── */}
-      <div style={{width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'#161616',display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',borderRight:'1px solid #2a2a2a'}}>
+      <div style={{width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'var(--c-bg-deep)',display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',borderRight:'1px solid var(--c-surface-raised)'}}>
 
         {/* Logo */}
-        <div style={{padding:sidebarOpen?'18px 16px 14px':'18px 10px 14px',display:'flex',alignItems:'center',gap:0,cursor:'pointer',borderBottom:'1px solid #2a2a2a'}}
+        <div style={{padding:sidebarOpen?'18px 16px 14px':'18px 10px 14px',display:'flex',alignItems:'center',gap:0,cursor:'pointer',borderBottom:'1px solid var(--c-surface-raised)'}}
           onClick={()=>setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
-              <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'#757575',letterSpacing:0}}>v0.1.9</span>
+              <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.3</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
-              <span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>T</span><span style={{background:'linear-gradient(135deg,#4a9eff,#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>F</span>
+              <span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>T</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>F</span>
             </span>
           )}
         </div>
 
         {/* Main/Calendar tab toggle */}
-        {sidebarOpen&&<div style={{padding:'12px 12px',display:'flex',gap:6,borderBottom:'1px solid #2a2a2a'}}>
+        {sidebarOpen&&<div style={{padding:'12px 12px',display:'flex',gap:6,borderBottom:'1px solid var(--c-surface-raised)'}}>
           <button onClick={()=>setMainTab('tasks')}
-            style={{flex:1,border:mainTab==='tasks'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='tasks'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='tasks'?'#4a9eff':'#a0a0a0',fontWeight:600}}>☰ Tasks</button>
+            style={{flex:1,border:mainTab==='tasks'?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',borderRadius:6,padding:'8px',background:mainTab==='tasks'?'var(--c-accent-08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='tasks'?'var(--c-accent)':'var(--c-text-secondary)',fontWeight:600}}>☰ Tasks</button>
           <button onClick={()=>setMainTab('calendar')}
-            style={{flex:1,border:mainTab==='calendar'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='calendar'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='calendar'?'#4a9eff':'#a0a0a0',fontWeight:600}}>📅 Calendar</button>
+            style={{flex:1,border:mainTab==='calendar'?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',borderRadius:6,padding:'8px',background:mainTab==='calendar'?'var(--c-accent-08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='calendar'?'var(--c-accent)':'var(--c-text-secondary)',fontWeight:600}}>📅 Calendar</button>
           <button onClick={()=>setMainTab('mindmap')}
-            style={{flex:1,border:mainTab==='mindmap'?'1.5px solid #4a9eff':'1.5px solid #333333',borderRadius:6,padding:'8px',background:mainTab==='mindmap'?'rgba(74,158,255,0.08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='mindmap'?'#4a9eff':'#a0a0a0',fontWeight:600}}>🧠 Mindmap</button>
+            style={{flex:1,border:mainTab==='mindmap'?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',borderRadius:6,padding:'8px',background:mainTab==='mindmap'?'var(--c-accent-08)':'transparent',cursor:'pointer',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:mainTab==='mindmap'?'var(--c-accent)':'var(--c-text-secondary)',fontWeight:600}}>🧠 Mindmap</button>
         </div>}
 
         {/* View buttons — only show in Tasks tab */}
@@ -3569,29 +3743,29 @@ function TaskFlow({ session, onSignOut }){
             const act=view===v.key&&!showCatMgr;const c=counts[v.key]||0;
             const sc=STATUS_CONFIG[v.key==='active'?'':v.key];
             const useColor=sc?.sidebarColor;
-            const activeColor=useColor?(sc?.color||'#d0d4e0'):'#d0d4e0';
-            const inactiveColor=useColor?(sc?.color||'#a0a0a0'):'#a0a0a0';
+            const activeColor=useColor?(sc?.color||'var(--c-text)'):'var(--c-text)';
+            const inactiveColor=useColor?(sc?.color||'var(--c-text-secondary)'):'var(--c-text-secondary)';
             return(
               <button key={v.key} onClick={()=>{setView(v.key);setCatFilter(null);setSearch('');setShowCatMgr(false);}}
                 style={{display:'flex',alignItems:'center',gap:12,width:'100%',border:'none',
-                  background:act?'rgba(74,158,255,0.08)':'transparent',
+                  background:act?'var(--c-accent-08)':'transparent',
                   padding:sidebarOpen?'12px 16px':'12px 14px',cursor:'pointer',
                   color:act?activeColor:inactiveColor,
                   opacity:act?1:0.75,
                   transition:'all 0.15s',
                   fontSize:22,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:act?600:400,
-                  borderLeft:act?'3px solid '+(useColor?(sc?.color||'#4a9eff'):'#4a9eff'):'3px solid transparent',
+                  borderLeft:act?'3px solid '+(useColor?(sc?.color||'var(--c-accent)'):'var(--c-accent)'):'3px solid transparent',
                 }}
                 onMouseEnter={e=>{if(!act)e.currentTarget.style.opacity='1';}}
                 onMouseLeave={e=>{if(!act)e.currentTarget.style.opacity='0.75';}}>
                 <span style={{width:28,height:28,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",flexShrink:0,
-                  background:v.key==='all'?'transparent':(v.key==='active'?'#2a2a2a':(sc?.bg||'#2a2a2a')),
-                  color:v.key==='all'?(act?activeColor:inactiveColor):(v.key==='active'?'#707070':(sc?.color||'#707070')),
-                  border:v.key==='all'?'none':(v.key==='active'?'2px solid #333333':'none'),
+                  background:v.key==='all'?'transparent':(v.key==='active'?'var(--c-surface-raised)':(sc?.bg||'var(--c-surface-raised)')),
+                  color:v.key==='all'?(act?activeColor:inactiveColor):(v.key==='active'?'var(--c-text-muted-4)':(sc?.color||'var(--c-text-muted-4)')),
+                  border:v.key==='all'?'none':(v.key==='active'?'2px solid var(--c-border)':'none'),
                 }}>{v.key==='all'?'≡':v.icon}</span>
                 {sidebarOpen&&<>
                   <span style={{flex:1,textAlign:'left'}}>{v.label}</span>
-                  {c>0&&<span style={{fontSize:16,fontFamily:"'JetBrains Mono',monospace",opacity:0.85,background:act?'rgba(255,255,255,0.08)':'transparent',padding:'2px 10px',borderRadius:10}}>{c}</span>}
+                  {c>0&&<span style={{fontSize:16,fontFamily:"'JetBrains Mono',monospace",opacity:0.85,background:act?'var(--c-white-08)':'transparent',padding:'2px 10px',borderRadius:10}}>{c}</span>}
                 </>}
               </button>
             );
@@ -3600,28 +3774,28 @@ function TaskFlow({ session, onSignOut }){
 
         {/* Category manager toggle */}
         {sidebarOpen&&mainTab==='tasks'&&<button onClick={()=>setShowCatMgr(!showCatMgr)}
-          style={{margin:'0 12px',padding:'10px 12px',border:'1px solid #2a2a2a',borderRadius:8,
-            background:showCatMgr?'rgba(74,158,255,0.08)':'transparent',
-            color:showCatMgr?'#d0d4e0':'#a0a0a0',cursor:'pointer',fontSize:14,textAlign:'left',
+          style={{margin:'0 12px',padding:'10px 12px',border:'1px solid var(--c-surface-raised)',borderRadius:8,
+            background:showCatMgr?'var(--c-accent-08)':'transparent',
+            color:showCatMgr?'var(--c-text)':'var(--c-text-secondary)',cursor:'pointer',fontSize:14,textAlign:'left',
             display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
           }}
-          onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>{if(!showCatMgr)e.currentTarget.style.color='#a0a0a0';}}>
+          onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>{if(!showCatMgr)e.currentTarget.style.color='var(--c-text-secondary)';}}>
           <span style={{fontSize:15}}>🎨</span><span>Categories</span>
         </button>}
 
         {/* Import/Export toggle */}
         {sidebarOpen&&mainTab==='tasks'&&<button onClick={()=>setShowImportExport(true)}
-          style={{margin:'6px 12px 0',padding:'10px 12px',border:'1px solid #2a2a2a',borderRadius:8,
+          style={{margin:'6px 12px 0',padding:'10px 12px',border:'1px solid var(--c-surface-raised)',borderRadius:8,
             background:'transparent',
-            color:'#a0a0a0',cursor:'pointer',fontSize:14,textAlign:'left',
+            color:'var(--c-text-secondary)',cursor:'pointer',fontSize:14,textAlign:'left',
             display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
           }}
-          onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>e.currentTarget.style.color='#a0a0a0'}>
+          onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-secondary)'}>
           <span style={{fontSize:15}}>↕</span><span>Import / Export</span>
         </button>}
 
         {/* Keyboard shortcuts */}
-        {sidebarOpen&&mainTab==='tasks'&&<div style={{padding:'14px 16px',borderTop:'1px solid #2a2a2a',color:'#858585',fontSize:11,fontFamily:"'JetBrains Mono',monospace",lineHeight:2.1,marginTop:12}}>
+        {sidebarOpen&&mainTab==='tasks'&&<div style={{padding:'14px 16px',borderTop:'1px solid var(--c-surface-raised)',color:'var(--c-text-muted-8)',fontSize:11,fontFamily:"'JetBrains Mono',monospace",lineHeight:2.1,marginTop:12}}>
           <div><K>x</K> done <K>s</K> skip</div>
           <div><K>t</K> tmrw <K>w</K> week <K>m</K> month</div>
           <div><K>l</K> long <K>u</K> urgent</div>
@@ -3632,15 +3806,15 @@ function TaskFlow({ session, onSignOut }){
         {/* ── Mindmap sidebar: Projects + Tree ── */}
         {mainTab==='mindmap'&&sidebarOpen&&<>
           {/* Project list */}
-          <div style={{padding:'8px 0',borderBottom:'1px solid #2a2a2a'}}>
+          <div style={{padding:'8px 0',borderBottom:'1px solid var(--c-surface-raised)'}}>
             {mm.projects.map(p=>{
               const isActive=p.id===mm.activeProjectId;
               const isRenaming=renamingProjectId===p.id;
               return isRenaming?(
                 <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,width:'100%',
-                  background:'rgba(74,158,255,0.08)',padding:'7px 16px',
-                  borderLeft:'3px solid #4a9eff'}}>
-                  <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'#4a9eff',flexShrink:0}}/>
+                  background:'var(--c-accent-08)',padding:'7px 16px',
+                  borderLeft:'3px solid var(--c-accent)'}}>
+                  <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'var(--c-accent)',flexShrink:0}}/>
                   <input value={renameProjectName} onChange={e=>setRenameProjectName(e.target.value)}
                     onKeyDown={e=>{
                       if(e.key==='Enter'&&renameProjectName.trim()){mm.renameProject(p.id,renameProjectName.trim());setRenamingProjectId(null);setRenameProjectName('');}
@@ -3648,32 +3822,32 @@ function TaskFlow({ session, onSignOut }){
                     }}
                     onBlur={()=>{if(renameProjectName.trim()){mm.renameProject(p.id,renameProjectName.trim());}setRenamingProjectId(null);setRenameProjectName('');}}
                     autoFocus
-                    style={{flex:1,border:'1px solid #4a9eff',borderRadius:4,padding:'3px 8px',fontSize:15,
-                      background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:600,outline:'none'}}/>
+                    style={{flex:1,border:'1px solid var(--c-accent)',borderRadius:4,padding:'3px 8px',fontSize:15,
+                      background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:600,outline:'none'}}/>
                 </div>
               ):(
                 <div key={p.id} style={{display:'flex',alignItems:'center',width:'100%',
-                    borderLeft:isActive?'3px solid #4a9eff':'3px solid transparent',
-                    background:isActive?'rgba(74,158,255,0.08)':'transparent',
+                    borderLeft:isActive?'3px solid var(--c-accent)':'3px solid transparent',
+                    background:isActive?'var(--c-accent-08)':'transparent',
                   }}>
                 <button onClick={()=>mm.switchProject(p.id)}
                   onDoubleClick={e=>{e.stopPropagation();setRenamingProjectId(p.id);setRenameProjectName(p.name);}}
                   style={{display:'flex',alignItems:'center',gap:10,flex:1,border:'none',
                     background:'transparent',
                     padding:'10px 16px',cursor:'pointer',
-                    color:isActive?'#d0d4e0':'#a8a8a8',opacity:isActive?1:0.85,
+                    color:isActive?'var(--c-text)':'var(--c-text-secondary-2)',opacity:isActive?1:0.85,
                     transition:'all 0.15s',fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:isActive?600:400,
                   }}
                   onMouseEnter={e=>{if(!isActive)e.currentTarget.style.opacity='1';}}
                   onMouseLeave={e=>{if(!isActive)e.currentTarget.style.opacity='0.85';}}>
-                  <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'#4a9eff',flexShrink:0}}/>
+                  <span style={{width:10,height:10,borderRadius:'50%',background:p.color||'var(--c-accent)',flexShrink:0}}/>
                   <span style={{flex:1,textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</span>
                 </button>
                 {mm.projects.length>1&&<button
                   onClick={e=>{e.stopPropagation();if(window.confirm('Delete project "'+p.name+'" and all its nodes? This cannot be undone.'))mm.deleteProject(p.id);}}
-                  style={{border:'none',background:'transparent',color:'#444',cursor:'pointer',padding:'4px 8px',fontSize:14,lineHeight:1,flexShrink:0,transition:'color 0.15s'}}
+                  style={{border:'none',background:'transparent',color:'var(--c-border-weak)',cursor:'pointer',padding:'4px 8px',fontSize:14,lineHeight:1,flexShrink:0,transition:'color 0.15s'}}
                   onMouseEnter={e=>e.currentTarget.style.color='#ff6b6b'}
-                  onMouseLeave={e=>e.currentTarget.style.color='#444'}
+                  onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-weak)'}
                   title={'Delete '+p.name}>×</button>}
                 </div>
               );
@@ -3684,16 +3858,16 @@ function TaskFlow({ session, onSignOut }){
                 <input value={newProjectName} onChange={e=>setNewProjectName(e.target.value)}
                   onKeyDown={e=>{if(e.key==='Enter'&&newProjectName.trim()){mm.addProject(newProjectName.trim());setAddingProject(false);setNewProjectName('');}if(e.key==='Escape'){setAddingProject(false);setNewProjectName('');}}}
                   placeholder="Project name..." autoFocus
-                  style={{flex:1,border:'1px solid #333333',borderRadius:4,padding:'5px 8px',fontSize:12,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+                  style={{flex:1,border:'1px solid var(--c-border)',borderRadius:4,padding:'5px 8px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
               </div>
             ):(
               <button onClick={()=>setAddingProject(true)}
                 style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',
                   background:'transparent',padding:'8px 16px',cursor:'pointer',
-                  color:'#808080',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
+                  color:'var(--c-text-muted-7)',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
                   transition:'color 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.color='#4a9eff'}
-                onMouseLeave={e=>e.currentTarget.style.color='#808080'}>
+                onMouseEnter={e=>e.currentTarget.style.color='var(--c-accent)'}
+                onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-muted-7)'}>
                 <span style={{fontSize:16,fontWeight:700}}>+</span>
                 <span>New Project</span>
               </button>
@@ -3702,15 +3876,15 @@ function TaskFlow({ session, onSignOut }){
 
           {/* Tree header with expand/collapse */}
           <div style={{padding:'10px 12px 6px',display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:11,fontWeight:600,color:'#a0a0a0',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Nodes</span>
+            <span style={{fontSize:11,fontWeight:600,color:'var(--c-text-secondary)',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Nodes</span>
             <button onClick={mmExpandAll} title="Expand all"
-              style={{border:'1px solid #333333',borderRadius:3,padding:'2px 5px',background:'transparent',
-                color:'#858585',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>e.currentTarget.style.color='#858585'}>⊞</button>
+              style={{border:'1px solid var(--c-border)',borderRadius:3,padding:'2px 5px',background:'transparent',
+                color:'var(--c-text-muted-8)',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-muted-8)'}>⊞</button>
             <button onClick={mmCollapseAll} title="Collapse all"
-              style={{border:'1px solid #333333',borderRadius:3,padding:'2px 5px',background:'transparent',
-                color:'#858585',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='#d0d4e0'} onMouseLeave={e=>e.currentTarget.style.color='#858585'}>⊟</button>
+              style={{border:'1px solid var(--c-border)',borderRadius:3,padding:'2px 5px',background:'transparent',
+                color:'var(--c-text-muted-8)',cursor:'pointer',fontSize:9,transition:'color 0.15s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='var(--c-text)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-muted-8)'}>⊟</button>
           </div>
 
           {/* Tree navigator */}
@@ -3760,7 +3934,7 @@ function TaskFlow({ session, onSignOut }){
           })()}
 
           {/* Auto-layout + Color palette + delete at bottom */}
-          <div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{padding:'8px 12px',borderTop:'1px solid var(--c-surface-raised)',display:'flex',flexDirection:'column',gap:6}}>
             {(()=>{
               const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
               const hasChildren=selNode&&selNode.children&&selNode.children.length>0;
@@ -3769,9 +3943,9 @@ function TaskFlow({ session, onSignOut }){
                   disabled={!hasChildren&&!!mm.selectedId}
                   title={selNode?'Auto-arrange '+selNode.title+' and its children':'Select a node with children to auto-layout'}
                   style={{padding:'5px 0',
-                    background:(hasChildren||!mm.selectedId)?'rgba(74,158,255,0.08)':'transparent',
-                    border:'1px solid '+((hasChildren||!mm.selectedId)?'rgba(74,158,255,0.25)':'#333333'),
-                    color:(hasChildren||!mm.selectedId)?'#4a9eff':'#4a4a4a',borderRadius:4,
+                    background:(hasChildren||!mm.selectedId)?'var(--c-accent-08)':'transparent',
+                    border:'1px solid '+((hasChildren||!mm.selectedId)?'var(--c-accent-25)':'var(--c-border)'),
+                    color:(hasChildren||!mm.selectedId)?'var(--c-accent)':'var(--c-border-strong)',borderRadius:4,
                     cursor:(hasChildren||!mm.selectedId)?'pointer':'default',fontSize:11,fontWeight:600,
                     fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',
                     display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
@@ -3786,12 +3960,12 @@ function TaskFlow({ session, onSignOut }){
                 return(
                 <button key={c} onClick={()=>{if(mm.selectedId)mm.setNodeColor(mm.selectedId,c);else mm.setDefaultNodeColor(c);}}
                   style={{width:20,height:20,background:c,
-                    border:isActive?'2px solid #fff':'1px solid rgba(255,255,255,0.12)',
+                    border:isActive?'2px solid var(--c-text)':'1px solid var(--c-white-12)',
                     borderRadius:3,cursor:'pointer',opacity:1,transition:'all 0.2s'}}/>
                 );
               })}
             </div>
-            {!mm.selectedId&&<div style={{fontSize:10,color:'#8a8a8a',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new nodes</div>}
+            {!mm.selectedId&&<div style={{fontSize:10,color:'var(--c-text-muted-10)',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new nodes</div>}
             {(()=>{
               const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
               const isRoot=mm.selectedId===mm.rootId;
@@ -3816,20 +3990,20 @@ function TaskFlow({ session, onSignOut }){
                 }}
                   disabled={!canDelete}
                   style={{padding:'5px 0',background:canDelete?'rgba(255,107,107,0.12)':'transparent',
-                    border:'1px solid '+(canDelete?'rgba(255,107,107,0.25)':'#333333'),
-                    color:canDelete?'#ff6b6b':'#4a4a4a',borderRadius:4,
+                    border:'1px solid '+(canDelete?'rgba(255,107,107,0.25)':'var(--c-border)'),
+                    color:canDelete?'#ff6b6b':'var(--c-border-strong)',borderRadius:4,
                     cursor:canDelete?'pointer':'default',fontSize:11,fontWeight:500,
                     fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}>{label}</button>
               );
             })()}
             <button onClick={()=>setShowMmImportExport(true)}
               style={{marginTop:6,padding:'5px 0',background:'transparent',
-                border:'1px solid #333333',color:'#a0a0a0',borderRadius:4,
+                border:'1px solid var(--c-border)',color:'var(--c-text-secondary)',borderRadius:4,
                 cursor:'pointer',fontSize:11,fontWeight:500,width:'100%',
                 fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',
                 display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
-              onMouseEnter={e=>{e.currentTarget.style.color='#d0d4e0';e.currentTarget.style.borderColor='#4a4a4a';}}
-              onMouseLeave={e=>{e.currentTarget.style.color='#a0a0a0';e.currentTarget.style.borderColor='#333333';}}>
+              onMouseEnter={e=>{e.currentTarget.style.color='var(--c-text)';e.currentTarget.style.borderColor='var(--c-border-strong)';}}
+              onMouseLeave={e=>{e.currentTarget.style.color='var(--c-text-secondary)';e.currentTarget.style.borderColor='var(--c-border)';}}>
               <span style={{fontSize:13}}>↕</span> Import / Export
             </button>
           </div>
@@ -3838,11 +4012,11 @@ function TaskFlow({ session, onSignOut }){
         {/* ── Calendar sidebar: task list ── */}
         {mainTab==='calendar'&&sidebarOpen&&<>
           <div style={{padding:'10px 12px 6px',display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:13,fontWeight:600,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Tasks with dates</span>
+            <span style={{fontSize:13,fontWeight:600,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1,letterSpacing:0.5,textTransform:'uppercase'}}>Tasks with dates</span>
           </div>
           <div style={{flex:1,overflow:'auto',padding:'2px 0 8px'}}>
             {tasks.filter(t=>t.dueDate).length===0?(
-              <div style={{padding:'12px 16px',fontSize:14,color:'#4a4a4a',textAlign:'center'}}>No scheduled tasks</div>
+              <div style={{padding:'12px 16px',fontSize:14,color:'var(--c-border-strong)',textAlign:'center'}}>No scheduled tasks</div>
             ):(
               tasks.filter(t=>t.dueDate).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||'')).map(task=>{
                 const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
@@ -3850,16 +4024,16 @@ function TaskFlow({ session, onSignOut }){
                 return(
                   <div key={task.id} onClick={()=>{setSelId(task.id);if(task.dueDate){setCalDate(new Date(task.dueDate+'T12:00:00'));setCalMode('day');}}}
                     style={{
-                      padding:'7px 14px',cursor:'pointer',borderLeft:'2px solid '+(selId===task.id?'#4a9eff':'transparent'),
-                      background:selId===task.id?'rgba(74,158,255,0.08)':'transparent',
+                      padding:'7px 14px',cursor:'pointer',borderLeft:'2px solid '+(selId===task.id?'var(--c-accent)':'transparent'),
+                      background:selId===task.id?'var(--c-accent-08)':'transparent',
                       display:'flex',alignItems:'center',gap:8,transition:'all 0.15s',
                     }}
-                    onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--c-white-02)'}
                     onMouseLeave={e=>{if(selId!==task.id)e.currentTarget.style.background='transparent';}}>
                     <span style={{width:10,height:10,borderRadius:'50%',background:task.eventColor||s.color,flexShrink:0}}/>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:14,color:'#9aa',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</div>
-                      <div style={{fontSize:12,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>{task.dueDate}{task.startTime?' '+task.startTime:''}</div>
+                      <div style={{fontSize:14,color:'var(--c-text-secondary-6)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</div>
+                      <div style={{fontSize:12,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>{task.dueDate}{task.startTime?' '+task.startTime:''}</div>
                     </div>
                     <div style={{flexShrink:0}} onClick={e=>e.stopPropagation()}>
                       <CalendarCatButton task={task} categories={categories} onUpdateTask={updateTask}/>
@@ -3871,7 +4045,7 @@ function TaskFlow({ session, onSignOut }){
           </div>
 
           {/* Color palette + delete event at bottom */}
-          <div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{padding:'8px 12px',borderTop:'1px solid var(--c-surface-raised)',display:'flex',flexDirection:'column',gap:6}}>
             <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
               {MINDMAP_COLORS.map(c=>{
                 const selTask=selId?tasks.find(t=>t.id===selId):null;
@@ -3879,30 +4053,30 @@ function TaskFlow({ session, onSignOut }){
                 return(
                 <button key={c} onClick={()=>{if(selId){const t=tasks.find(tk=>tk.id===selId);if(t)updateTask({...t,eventColor:c});}else setDefaultEventColor(c);}}
                   style={{width:20,height:20,background:c,
-                    border:isActive?'2px solid #fff':'1px solid rgba(255,255,255,0.12)',
+                    border:isActive?'2px solid var(--c-text)':'1px solid var(--c-white-12)',
                     borderRadius:3,cursor:'pointer',opacity:1,transition:'all 0.2s'}}/>
                 );
               })}
             </div>
-            {!selId&&<div style={{fontSize:10,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new events</div>}
+            {!selId&&<div style={{fontSize:10,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>Default color for new events</div>}
             <button onClick={()=>{if(selId){setTasks(prev=>prev.filter(t=>t.id!==selId));setSelId(null);}}}
               disabled={!selId}
               style={{padding:'5px 0',background:selId?'rgba(255,107,107,0.12)':'transparent',
-                border:'1px solid '+(selId?'rgba(255,107,107,0.25)':'#333333'),
-                color:selId?'#ff6b6b':'#4a4a4a',borderRadius:4,
+                border:'1px solid '+(selId?'rgba(255,107,107,0.25)':'var(--c-border)'),
+                color:selId?'#ff6b6b':'var(--c-border-strong)',borderRadius:4,
                 cursor:selId?'pointer':'default',fontSize:11,fontWeight:500,
                 fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s'}}>Delete event</button>
           </div>
         </>}
 
         {/* ── Cloud status & account ── */}
-        {sidebarOpen&&<div style={{padding:'8px 12px',borderTop:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:8,position:'relative'}}>
+        {sidebarOpen&&<div style={{padding:'8px 12px',borderTop:'1px solid var(--c-surface-raised)',display:'flex',alignItems:'center',gap:8,position:'relative'}}>
           {(()=>{
             const dot={width:7,height:7,borderRadius:'50%',flexShrink:0};
-            if(cloudStatus==='synced')return <><span style={{...dot,background:'#6ecf6e'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Synced</span></>;
-            if(cloudStatus==='syncing')return <><span style={{...dot,background:'#f0c040'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Syncing...</span></>;
-            if(cloudStatus==='error')return <><span style={{...dot,background:'#ff6b6b'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Sync error</span></>;
-            return <><span style={{...dot,background:'#555'}}/><span style={{fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Local only</span></>;
+            if(cloudStatus==='synced')return <><span style={{...dot,background:'#6ecf6e'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Synced</span></>;
+            if(cloudStatus==='syncing')return <><span style={{...dot,background:'#f0c040'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Syncing...</span></>;
+            if(cloudStatus==='error')return <><span style={{...dot,background:'#ff6b6b'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Sync error</span></>;
+            return <><span style={{...dot,background:'var(--c-text-dim)'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Local only</span></>;
           })()}
           {session&&<button onClick={async()=>{
             if(showBackups){setShowBackups(false);return;}
@@ -3910,24 +4084,27 @@ function TaskFlow({ session, onSignOut }){
             const idx=await loadBackupIndex();
             setBackupList(idx);setBackupLoading(false);
           }} title="Backups"
-            style={{border:'none',background:showBackups?'#2a2a2a':'transparent',color:showBackups?'#d0d4e0':'#4a4a4a',cursor:'pointer',fontSize:12,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',borderRadius:3}}
-            onMouseEnter={e=>{if(!showBackups)e.currentTarget.style.color='#888';}} onMouseLeave={e=>{if(!showBackups)e.currentTarget.style.color='#4a4a4a';}}>⟲</button>}
+            style={{border:'none',background:showBackups?'var(--c-surface-raised)':'transparent',color:showBackups?'var(--c-text)':'var(--c-border-strong)',cursor:'pointer',fontSize:12,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',borderRadius:3}}
+            onMouseEnter={e=>{if(!showBackups)e.currentTarget.style.color='var(--c-text-muted-9)';}} onMouseLeave={e=>{if(!showBackups)e.currentTarget.style.color='var(--c-border-strong)';}}>⟲</button>}
+          <button onClick={toggleTheme} title={theme==='dark'?'Switch to light theme':'Switch to dark theme'}
+            style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:13,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>{theme==='dark'?'☀':'☾'}</button>
           {onSignOut&&<button onClick={onSignOut} title="Sign out"
-            style={{border:'none',background:'transparent',color:'#4a4a4a',cursor:'pointer',fontSize:13,padding:'2px 4px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
-            onMouseEnter={e=>e.currentTarget.style.color='#888'} onMouseLeave={e=>e.currentTarget.style.color='#4a4a4a'}>↪</button>}
+            style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:13,padding:'2px 4px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>↪</button>}
 
           {/* ── Backup dropdown ── */}
-          {showBackups&&<div style={{position:'absolute',bottom:'100%',left:0,right:0,marginBottom:4,background:'#1a1a1e',border:'1px solid #2a2a2a',borderRadius:8,padding:'8px 0',maxHeight:320,overflowY:'auto',zIndex:999,boxShadow:'0 -4px 20px rgba(0,0,0,0.5)'}}>
-            <div style={{padding:'4px 12px 8px',fontSize:11,fontWeight:600,color:'#808080',fontFamily:"'JetBrains Mono',monospace",borderBottom:'1px solid #2a2a2a',marginBottom:4}}>Login Backups</div>
-            {backupLoading&&<div style={{padding:'12px',textAlign:'center',fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>Loading...</div>}
-            {!backupLoading&&backupList.length===0&&<div style={{padding:'12px',textAlign:'center',fontSize:11,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>No backups yet</div>}
+          {showBackups&&<div style={{position:'absolute',bottom:'100%',left:0,right:0,marginBottom:4,background:'var(--c-bg-dropdown)',border:'1px solid var(--c-surface-raised)',borderRadius:8,padding:'8px 0',maxHeight:320,overflowY:'auto',zIndex:999,boxShadow:'0 -4px 20px var(--c-shadow-50)'}}>
+            <div style={{padding:'4px 12px 8px',fontSize:11,fontWeight:600,color:'var(--c-text-muted-7)',fontFamily:"'JetBrains Mono',monospace",borderBottom:'1px solid var(--c-surface-raised)',marginBottom:4}}>Login Backups</div>
+            {backupLoading&&<div style={{padding:'12px',textAlign:'center',fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>Loading...</div>}
+            {!backupLoading&&backupList.length===0&&<div style={{padding:'12px',textAlign:'center',fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>No backups yet</div>}
             {!backupLoading&&backupList.map((b,i)=>{
               const d=new Date(b.ts);
               const dateStr=d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
               const timeStr=d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
               const isRestoring=restoringKey===b.key;
               return <div key={b.key} style={{padding:'6px 12px',cursor:isRestoring?'wait':'pointer',transition:'background 0.1s',display:'flex',alignItems:'center',gap:8}}
-                onMouseEnter={e=>e.currentTarget.style.background='#242428'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                onMouseEnter={e=>e.currentTarget.style.background='var(--c-surface-3b)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                 onClick={async()=>{
                   if(isRestoring)return;
                   if(!confirm('Restore from '+dateStr+' '+timeStr+'?\n\nThis will replace all your current tasks, categories, and mindmap data with this snapshot.'))return;
@@ -3949,18 +4126,18 @@ function TaskFlow({ session, onSignOut }){
                   setRestoringKey(null);
                 }}>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:12,color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:500}}>{dateStr} <span style={{color:'#606060',fontWeight:400}}>{timeStr}</span></div>
-                  <div style={{fontSize:10,color:'#505060',fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>{b.taskCount||0} tasks · {b.projectCount||0} projects</div>
+                  <div style={{fontSize:12,color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:500}}>{dateStr} <span style={{color:'var(--c-text-muted)',fontWeight:400}}>{timeStr}</span></div>
+                  <div style={{fontSize:10,color:'var(--c-text-faint-cool)',fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>{b.taskCount||0} tasks · {b.projectCount||0} projects</div>
                 </div>
                 {isRestoring&&<span style={{fontSize:10,color:'#f0c040',fontFamily:"'JetBrains Mono',monospace"}}>Restoring...</span>}
               </div>;
             })}
           </div>}
         </div>}
-        {!sidebarOpen&&<div style={{padding:'8px 0',borderTop:'1px solid #2a2a2a',display:'flex',justifyContent:'center'}}>
+        {!sidebarOpen&&<div style={{padding:'8px 0',borderTop:'1px solid var(--c-surface-raised)',display:'flex',justifyContent:'center'}}>
           {(()=>{
             const dot={width:7,height:7,borderRadius:'50%'};
-            const c=cloudStatus==='synced'?'#6ecf6e':cloudStatus==='syncing'?'#f0c040':cloudStatus==='error'?'#ff6b6b':'#555';
+            const c=cloudStatus==='synced'?'#6ecf6e':cloudStatus==='syncing'?'#f0c040':cloudStatus==='error'?'#ff6b6b':'var(--c-text-dim)';
             return <span title={cloudStatus==='synced'?'Synced':cloudStatus==='syncing'?'Syncing...':cloudStatus==='error'?'Sync error':'Local only'} style={{...dot,background:c}}/>;
           })()}
         </div>}
@@ -3970,21 +4147,21 @@ function TaskFlow({ session, onSignOut }){
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
         {/* Header bar - only show in Tasks tab */}
-        {mainTab==='tasks'&&<div style={{padding:'16px 24px',borderBottom:'1px solid #2a2a2a',display:'flex',alignItems:'center',gap:16,background:'#161616'}}>
+        {mainTab==='tasks'&&<div style={{padding:'16px 24px',borderBottom:'1px solid var(--c-surface-raised)',display:'flex',alignItems:'center',gap:16,background:'var(--c-bg-deep)'}}>
           <div style={{flex:1}}>
-            <h1 style={{fontSize:22,fontWeight:600,display:'flex',alignItems:'center',gap:10,color:'#d0d4e0'}}>
+            <h1 style={{fontSize:22,fontWeight:600,display:'flex',alignItems:'center',gap:10,color:'var(--c-text)'}}>
               <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:7,
-                background:view==='all'?'transparent':(view==='active'?'#2a2a2a':(STATUS_CONFIG[view]?.bg||'#2a2a2a')),
-                color:view==='all'?'#d0d4e0':(view==='active'?'#4a4a4a':(STATUS_CONFIG[view]?.color||'#4a4a4a')),
-                border:view==='active'?'2px solid #333333':'none',
+                background:view==='all'?'transparent':(view==='active'?'var(--c-surface-raised)':(STATUS_CONFIG[view]?.bg||'var(--c-surface-raised)')),
+                color:view==='all'?'var(--c-text)':(view==='active'?'var(--c-border-strong)':(STATUS_CONFIG[view]?.color||'var(--c-border-strong)')),
+                border:view==='active'?'2px solid var(--c-border)':'none',
                 fontSize:15,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>
                 {VIEWS.find(v=>v.key===view)?.icon}
               </span>
               {VIEWS.find(v=>v.key===view)?.label}
-              <span style={{fontSize:15,fontWeight:400,color:'#606060',fontFamily:"'JetBrains Mono',monospace"}}>{filtered.length}</span>
+              <span style={{fontSize:15,fontWeight:400,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace"}}>{filtered.length}</span>
             </h1>
           </div>
-          <span style={{fontSize:13,color:'#5a6080',fontFamily:"'JetBrains Mono',monospace",fontWeight:500,whiteSpace:'nowrap'}}>
+          <span style={{fontSize:13,color:'var(--c-text-cool-3)',fontFamily:"'JetBrains Mono',monospace",fontWeight:500,whiteSpace:'nowrap'}}>
             {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
           </span>
 
@@ -3993,10 +4170,10 @@ function TaskFlow({ session, onSignOut }){
             {Object.entries(categories).map(([name,cfg])=>(
               <button key={name} onClick={()=>setCatFilter(catFilter===name?null:name)}
                 style={{
-                  border:catFilter===name?'2px solid #fff':'1px solid transparent',
+                  border:catFilter===name?'2px solid var(--c-text)':'1px solid transparent',
                   borderRadius:5,padding:'4px 12px',fontSize:13,cursor:'pointer',
                   background:cfg.bg,fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
-                  color:cfg.text||'#222',transition:'all 0.15s',
+                  color:cfg.text||'var(--c-surface-2)',transition:'all 0.15s',
                   opacity:catFilter===name?1:(catFilter?0.35:0.7),
                   boxShadow:catFilter===name?'0 0 12px '+cfg.bg+'88':'none',
                 }}>{name}</button>
@@ -4006,9 +4183,9 @@ function TaskFlow({ session, onSignOut }){
           {/* Search */}
           <div style={{position:'relative'}}>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
-              style={{border:'1px solid #333333',borderRadius:6,padding:'8px 12px 8px 32px',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:210,background:'#1a1a1a',color:'#d0d4e0',transition:'border-color 0.15s'}}
-              onFocus={e=>e.target.style.borderColor='#4a9eff'} onBlur={e=>e.target.style.borderColor='#333333'}/>
-            <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:14,color:'#4a4a4a'}}>⌕</span>
+              style={{border:'1px solid var(--c-border)',borderRadius:6,padding:'8px 12px 8px 32px',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:210,background:'var(--c-bg)',color:'var(--c-text)',transition:'border-color 0.15s'}}
+              onFocus={e=>e.target.style.borderColor='var(--c-accent)'} onBlur={e=>e.target.style.borderColor='var(--c-border)'}/>
+            <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:14,color:'var(--c-border-strong)'}}>⌕</span>
           </div>
         </div>}
 
@@ -4023,20 +4200,20 @@ function TaskFlow({ session, onSignOut }){
           <>
             {/* Quick entry + clear button (active view only) */}
             {view==='active'&&(
-              <div style={{padding:'14px 24px',borderBottom:'1px solid #2a2a2a',background:'#161616'}}>
+              <div style={{padding:'14px 24px',borderBottom:'1px solid var(--c-surface-raised)',background:'var(--c-bg-deep)'}}>
                 <div style={{display:'flex',gap:10,alignItems:'center'}}>
-                  <span style={{color:'#4a9eff',fontSize:22,fontWeight:700}}>+</span>
+                  <span style={{color:'var(--c-accent)',fontSize:22,fontWeight:700}}>+</span>
                   <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
                     onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){const parentTask=selTask&&tasks.some(t=>t.parentId===selTask.id)?selTask:null;addTask(input,null,null,null,parentTask?parentTask.id:null);setInput('');}}}
                     placeholder={selTask&&tasks.some(t=>t.parentId===selTask.id)?"Add subtask to "+selTask.title+"...":"Add a task... (#W for Work, #H for Home, etc.)"}
-                    style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:"'IBM Plex Sans',sans-serif",color:'#d0d4e0',background:'transparent',padding:'4px 0'}}/>
+                    style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:"'IBM Plex Sans',sans-serif",color:'var(--c-text)',background:'transparent',padding:'4px 0'}}/>
                   {selTask&&selTask.status&&selTask.status!==''&&selTask.status!=='u'&&(
                     <button onClick={()=>{updateTask({...selTask,activeVisible:false});setSelId(null);}}
-                      style={{border:'1px solid #2a3a4a',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
-                        background:'rgba(74,158,255,0.08)',color:'#4a9eff',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
+                      style={{border:'1px solid var(--c-surface-cool-2)',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
+                        background:'var(--c-accent-08)',color:'var(--c-accent)',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
                         transition:'all 0.15s',whiteSpace:'nowrap'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(74,158,255,0.16)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='rgba(74,158,255,0.08)'}>
+                      onMouseEnter={e=>e.currentTarget.style.background='var(--c-accent-16)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='var(--c-accent-08)'}>
                       Clear selected
                     </button>
                   )}
@@ -4048,7 +4225,7 @@ function TaskFlow({ session, onSignOut }){
                     onMouseLeave={e=>e.currentTarget.style.background='rgba(110,207,110,0.1)'}>
                     ✓ Clear checked ({checkedCount})
                   </button>}
-                  <span style={{fontSize:12,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace"}}>⏎ enter</span>
+                  <span style={{fontSize:12,color:'var(--c-border-strong)',fontFamily:"'JetBrains Mono',monospace"}}>⏎ enter</span>
                 </div>
               </div>
             )}
@@ -4056,7 +4233,7 @@ function TaskFlow({ session, onSignOut }){
             {/* Task list */}
             <div style={{flex:1,overflow:'auto',padding:'8px 12px 60px'}}>
               {filtered.length===0?(
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60%',color:'#4a4a4a',gap:12}}>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60%',color:'var(--c-border-strong)',gap:12}}>
                   <span style={{fontSize:44}}>{view==='active'?'✨':view==='x'?'📦':'📋'}</span>
                   <span style={{fontSize:16}}>{view==='active'?'All clear — add a task to get started.':'No tasks here.'}</span>
                 </div>
@@ -4067,7 +4244,7 @@ function TaskFlow({ session, onSignOut }){
               ):(
                 grouped?.map(([dk,dayTasks])=>(
                   <div key={dk} style={{marginBottom:24}}>
-                    <div style={{fontSize:13,fontWeight:600,color:'#4a4a4a',fontFamily:"'JetBrains Mono',monospace",padding:'12px 16px 6px',letterSpacing:0.5,textTransform:'uppercase',borderBottom:'1px solid #2a2a2a',marginBottom:6}}>
+                    <div style={{fontSize:13,fontWeight:600,color:'var(--c-border-strong)',fontFamily:"'JetBrains Mono',monospace",padding:'12px 16px 6px',letterSpacing:0.5,textTransform:'uppercase',borderBottom:'1px solid var(--c-surface-raised)',marginBottom:6}}>
                       {fmtDay(dk+'T12:00:00')}
                     </div>
                     <div style={{display:'flex',flexDirection:'column',gap:2}}>
@@ -4084,15 +4261,15 @@ function TaskFlow({ session, onSignOut }){
         {selTask&&(mainTab==='tasks'||mainTab==='calendar')&&(()=>{
           const task=selTask;
           return(
-            <div style={{borderTop:'1px solid #2a2a2a',padding:'10px 24px',background:'#161616',display:'flex',alignItems:'center',gap:16,fontSize:13,fontFamily:"'JetBrains Mono',monospace",color:'#606060',flexWrap:'wrap'}}>
-              <span style={{fontWeight:600,color:'#6a7090',maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</span>
+            <div style={{borderTop:'1px solid var(--c-surface-raised)',padding:'10px 24px',background:'var(--c-bg-deep)',display:'flex',alignItems:'center',gap:16,fontSize:13,fontFamily:"'JetBrains Mono',monospace",color:'var(--c-text-muted)',flexWrap:'wrap'}}>
+              <span style={{fontWeight:600,color:'var(--c-text-cool-2)',maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{task.title}</span>
               <span>added {fmt(task.dateAdded)}</span>
               {task.dateCompleted&&<span style={{color:'#5a8a5a'}}>done {fmt(task.dateCompleted)}</span>}
 
               {/* Auto-return button */}
               {(task.status==='t'||task.status==='w'||task.status==='m')&&(
                 <button onClick={()=>updateTask({...task,autoReturn:!task.autoReturn})}
-                  style={{border:'1px solid #333333',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.autoReturn?'#1a2a1a':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.autoReturn?'#6ecf6e':'#606060'}}>
+                  style={{border:'1px solid var(--c-border)',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.autoReturn?'#1a2a1a':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.autoReturn?'#6ecf6e':'var(--c-text-muted)'}}>
                   ↩ auto-return {task.autoReturn?'on':'off'}
                 </button>
               )}
@@ -4100,7 +4277,7 @@ function TaskFlow({ session, onSignOut }){
               {/* Recurrence button */}
               <div style={{position:'relative'}}>
                 <button onClick={()=>setRecDropOpen(!recDropOpen)}
-                  style={{border:'1px solid #333333',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.recurrence?'#1a2a3e':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.recurrence?'#50a0e0':'#606060'}}>
+                  style={{border:'1px solid var(--c-border)',borderRadius:5,padding:'3px 10px',cursor:'pointer',background:task.recurrence?'#1a2a3e':'transparent',fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:task.recurrence?'#50a0e0':'var(--c-text-muted)'}}>
                   🔁 {task.recurrence?describeRecurrence(task.recurrence):'repeat off'}
                 </button>
                 {recDropOpen&&<RecurrenceDropdown task={task} onSelect={rec=>{updateTask({...task,recurrence:rec});setRecDropOpen(false);}} onClose={()=>setRecDropOpen(false)}/>}
@@ -4108,12 +4285,12 @@ function TaskFlow({ session, onSignOut }){
 
               {/* Notes input */}
               <input value={task.notes||''} onChange={e=>updateTask({...task,notes:e.target.value})} placeholder="Add notes..."
-                style={{flex:1,border:'1px solid #333333',borderRadius:5,padding:'4px 8px',fontSize:12,background:'#1a1a1a',color:'#d0d4e0',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+                style={{flex:1,border:'1px solid var(--c-border)',borderRadius:5,padding:'4px 8px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
 
               {/* Close button */}
               <button onClick={()=>setSelId(null)}
-                style={{border:'none',background:'transparent',cursor:'pointer',color:'#444',fontSize:18,padding:'0 4px'}}
-                onMouseEnter={e=>e.currentTarget.style.color='#888'} onMouseLeave={e=>e.currentTarget.style.color='#444'}>×</button>
+                style={{border:'none',background:'transparent',cursor:'pointer',color:'var(--c-border-weak)',fontSize:18,padding:'0 4px'}}
+                onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-weak)'}>×</button>
             </div>
           );
         })()}
@@ -4180,7 +4357,7 @@ function AuthGate() {
 
   if (loading) {
     return React.createElement('div', {
-      style: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', color: '#6a7090', fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }
+      style: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--c-bg)', color: 'var(--c-text-cool-2)', fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }
     }, 'Loading...');
   }
 
@@ -4189,14 +4366,14 @@ function AuthGate() {
 
   // Not signed in — show sign-in overlay
   if (!session) {
-    return React.createElement('div', { style: { height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', fontFamily: "'IBM Plex Sans', sans-serif", gap: 24 } },
-      React.createElement('div', { style: { fontSize: 32, fontWeight: 700, color: '#d0d4e0', letterSpacing: '-0.5px' } }, 'TaskFlow'),
-      React.createElement('div', { style: { fontSize: 14, color: '#6a7090', marginBottom: 8 } }, 'Sign in to sync your tasks across devices'),
+    return React.createElement('div', { style: { height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--c-bg)', fontFamily: "'IBM Plex Sans', sans-serif", gap: 24 } },
+      React.createElement('div', { style: { fontSize: 32, fontWeight: 700, color: 'var(--c-text)', letterSpacing: '-0.5px' } }, 'TaskFlow'),
+      React.createElement('div', { style: { fontSize: 14, color: 'var(--c-text-cool-2)', marginBottom: 8 } }, 'Sign in to sync your tasks across devices'),
       React.createElement('button', {
         onClick: handleGoogleSignIn,
-        style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 28px', background: '#242424', border: '1px solid #333', borderRadius: 10, color: '#d0d4e0', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: "'IBM Plex Sans', sans-serif", transition: 'border-color 0.15s' },
-        onMouseEnter: e => e.currentTarget.style.borderColor = '#4a9eff',
-        onMouseLeave: e => e.currentTarget.style.borderColor = '#333'
+        style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 28px', background: 'var(--c-surface-3)', border: '1px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: "'IBM Plex Sans', sans-serif", transition: 'border-color 0.15s' },
+        onMouseEnter: e => e.currentTarget.style.borderColor = 'var(--c-accent)',
+        onMouseLeave: e => e.currentTarget.style.borderColor = 'var(--c-border)'
       },
         React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24' },
           React.createElement('path', { d: 'M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z', fill: '#4285F4' }),
@@ -4209,9 +4386,9 @@ function AuthGate() {
       authError && React.createElement('div', { style: { color: '#ff6b6b', fontSize: 13, marginTop: 4 } }, authError),
       React.createElement('button', {
         onClick: () => { /* skip auth, use localStorage only */ setSession({ skip: true }); },
-        style: { background: 'transparent', border: 'none', color: '#555', fontSize: 13, cursor: 'pointer', marginTop: 4, fontFamily: "'IBM Plex Sans', sans-serif" },
-        onMouseEnter: e => e.currentTarget.style.color = '#888',
-        onMouseLeave: e => e.currentTarget.style.color = '#555'
+        style: { background: 'transparent', border: 'none', color: 'var(--c-text-dim)', fontSize: 13, cursor: 'pointer', marginTop: 4, fontFamily: "'IBM Plex Sans', sans-serif" },
+        onMouseEnter: e => e.currentTarget.style.color = 'var(--c-text-muted-9)',
+        onMouseLeave: e => e.currentTarget.style.color = 'var(--c-text-dim)'
       }, 'Continue offline with local storage')
     );
   }
