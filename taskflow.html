@@ -190,6 +190,7 @@ input[type="color"]{-webkit-appearance:none;border:none;cursor:pointer}
 input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
 input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
 @keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 </style>
 </head>
 <body>
@@ -2320,6 +2321,77 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   }, []);
   const handleSvgClick = useCallback(e => { if (e.target === svgRef.current) { setSelectedId(null); setNotesNodeId(null); } }, [setSelectedId]);
 
+  // Touch pan + pinch-zoom. Native listeners so we can preventDefault on touchmove
+  // (React's touchmove is passive by default in some cases). Kept separate from the
+  // mouse handlers above so desktop behavior is untouched.
+  const touchRef = useRef({ mode: null, lastX: 0, lastY: 0, lastDist: 0 });
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const toLocal = t => {
+      const r = svg.getBoundingClientRect();
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    };
+    const onStart = e => {
+      if (e.touches.length === 2) {
+        const p0 = toLocal(e.touches[0]), p1 = toLocal(e.touches[1]);
+        const midX = (p0.x + p1.x) / 2, midY = (p0.y + p1.y) / 2;
+        const dist = Math.hypot(p0.x - p1.x, p0.y - p1.y);
+        touchRef.current = { mode: 'pinch', lastX: midX, lastY: midY, lastDist: dist };
+        e.preventDefault();
+      } else if (e.touches.length === 1 && e.target === svg) {
+        const p = toLocal(e.touches[0]);
+        touchRef.current = { mode: 'pan', lastX: p.x, lastY: p.y, lastDist: 0 };
+        e.preventDefault();
+      }
+    };
+    const onMove = e => {
+      const t = touchRef.current;
+      if (!t.mode) return;
+      if (t.mode === 'pan' && e.touches.length === 1) {
+        const p = toLocal(e.touches[0]);
+        const dx = p.x - t.lastX, dy = p.y - t.lastY;
+        t.lastX = p.x; t.lastY = p.y;
+        setVt(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+        e.preventDefault();
+      } else if (t.mode === 'pinch' && e.touches.length >= 2) {
+        const p0 = toLocal(e.touches[0]), p1 = toLocal(e.touches[1]);
+        const midX = (p0.x + p1.x) / 2, midY = (p0.y + p1.y) / 2;
+        const dist = Math.hypot(p0.x - p1.x, p0.y - p1.y);
+        const ratio = dist / Math.max(t.lastDist, 1);
+        setVt(prev => {
+          const ns = Math.max(0.2, Math.min(3.0, prev.scale * ratio));
+          // Keep the world point under the old midpoint anchored to the new midpoint.
+          // Gives combined pan+zoom in one formula.
+          const worldX = (t.lastX - prev.x) / prev.scale;
+          const worldY = (t.lastY - prev.y) / prev.scale;
+          return { x: midX - worldX * ns, y: midY - worldY * ns, scale: ns };
+        });
+        t.lastX = midX; t.lastY = midY; t.lastDist = dist;
+        e.preventDefault();
+      }
+    };
+    const onEnd = e => {
+      if (e.touches.length === 0) {
+        touchRef.current = { mode: null, lastX: 0, lastY: 0, lastDist: 0 };
+      } else if (e.touches.length === 1) {
+        // Lifted one finger of a pinch — continue as pan from remaining finger.
+        const p = toLocal(e.touches[0]);
+        touchRef.current = { mode: 'pan', lastX: p.x, lastY: p.y, lastDist: 0 };
+      }
+    };
+    svg.addEventListener('touchstart', onStart, { passive: false });
+    svg.addEventListener('touchmove', onMove, { passive: false });
+    svg.addEventListener('touchend', onEnd);
+    svg.addEventListener('touchcancel', onEnd);
+    return () => {
+      svg.removeEventListener('touchstart', onStart);
+      svg.removeEventListener('touchmove', onMove);
+      svg.removeEventListener('touchend', onEnd);
+      svg.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
+
   // Toast helper
   const showToast = useCallback(msg => {
     setToast(msg);
@@ -2426,7 +2498,7 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       onKeyDown={handleKeyDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
 
       {/* SVG Canvas */}
-      <svg ref={svgRef} style={{flex:1,width:'100%',height:'100%',background:'var(--c-bg)',cursor:isPanning?'grabbing':'grab',userSelect:'none'}}
+      <svg ref={svgRef} style={{flex:1,width:'100%',height:'100%',background:'var(--c-bg)',cursor:isPanning?'grabbing':'grab',userSelect:'none',touchAction:'none'}}
         onWheel={handleWheel} onMouseDown={handleSvgMouseDown} onClick={handleSvgClick}>
         <g transform={`translate(${vt.x},${vt.y}) scale(${vt.scale})`}>
           {edges.map((edge,i)=><MindmapEdge key={'me-'+i} edge={edge}/>)}
@@ -3349,6 +3421,32 @@ function K({children}){
   return <kbd style={{display:'inline-block',padding:'1px 5px',border:'1px solid var(--c-surface-hi-2)',borderRadius:3,fontSize:10,fontFamily:"'JetBrains Mono',monospace",marginRight:3,background:'var(--c-surface-raised)',color:'var(--c-text-secondary-3)'}}>{children}</kbd>;
 }
 
+/* ── Viewport hook ──
+   Breakpoints: mobile <640, tablet 640–1023, desktop >=1024.
+   isCompact = mobile || tablet (triggers drawer-sidebar + bigger tap targets). */
+const MOBILE_BP = 640, TABLET_BP = 1024;
+function useViewport(){
+  const [vp, setVp] = useState(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 800;
+    return { width: w, height: h, isMobile: w < MOBILE_BP, isTablet: w >= MOBILE_BP && w < TABLET_BP, isCompact: w < TABLET_BP };
+  });
+  useEffect(() => {
+    let raf = 0;
+    const onResize = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const w = window.innerWidth, h = window.innerHeight;
+        setVp({ width: w, height: h, isMobile: w < MOBILE_BP, isTablet: w >= MOBILE_BP && w < TABLET_BP, isCompact: w < TABLET_BP });
+      });
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => { window.removeEventListener('resize', onResize); window.removeEventListener('orientationchange', onResize); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+  return vp;
+}
+
 /* ══════════════════════════════════════════
    ── Main App ──
    ══════════════════════════════════════════ */
@@ -3362,7 +3460,19 @@ function TaskFlow({ session, onSignOut }){
   const[search,setSearch]=useState('');
   const[catFilter,setCatFilter]=useState(null);
   const[dragIdx,setDragIdx]=useState(null);
-  const[sidebarOpen,setSidebarOpen]=useState(true);
+  const vp = useViewport();
+  const[sidebarOpen,setSidebarOpen]=useState(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    return w >= TABLET_BP;
+  });
+  // Auto-close sidebar when crossing into compact mode; auto-open when crossing back to desktop.
+  const prevCompactRef = useRef(vp.isCompact);
+  useEffect(() => {
+    if (prevCompactRef.current !== vp.isCompact) {
+      setSidebarOpen(!vp.isCompact);
+      prevCompactRef.current = vp.isCompact;
+    }
+  }, [vp.isCompact]);
   const[theme,setTheme]=useState(()=>loadLS('taskflow-theme','dark'));
   useEffect(()=>{document.documentElement.dataset.theme=theme;saveLS('taskflow-theme',theme);},[theme]);
   const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
@@ -3709,16 +3819,46 @@ function TaskFlow({ session, onSignOut }){
         <button onClick={()=>setLsError(null)} style={{border:'none',background:'transparent',color:'#ff6b6b',cursor:'pointer',fontSize:16,padding:'0 4px'}}>×</button>
       </div>}
 
+      {/* Mobile/tablet backdrop — dims canvas and closes drawer when tapped */}
+      {vp.isCompact && sidebarOpen && <div
+        onClick={()=>setSidebarOpen(false)}
+        style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:199,animation:'fadeIn 0.15s'}}/>}
+
+      {/* Floating hamburger — only on compact screens when drawer is closed */}
+      {vp.isCompact && !sidebarOpen && <button
+        onClick={()=>setSidebarOpen(true)} aria-label="Open menu"
+        style={{position:'fixed',top:10,left:10,zIndex:150,width:42,height:42,
+          border:'1px solid var(--c-border)',borderRadius:8,background:'var(--c-bg-deep)',
+          color:'var(--c-text)',fontSize:20,cursor:'pointer',touchAction:'manipulation',
+          boxShadow:'0 2px 8px var(--c-shadow-40)',display:'flex',alignItems:'center',justifyContent:'center'}}>☰</button>}
+
       {/* ── Sidebar ── */}
-      <div style={{width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'var(--c-bg-deep)',display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',borderRight:'1px solid var(--c-surface-raised)'}}>
+      <div style={vp.isCompact ? {
+          /* Compact: overlay drawer. Slides off-screen when closed (kept in DOM so state/scroll position persists). */
+          position:'fixed',top:0,left:0,bottom:0,
+          width:'min(320px, 88vw)',
+          transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition:'transform 0.2s ease',
+          background:'var(--c-bg-deep)',
+          display:'flex',flexDirection:'column',
+          overflowY:'auto',overflowX:'hidden',
+          borderRight:'1px solid var(--c-surface-raised)',
+          zIndex:200,
+          boxShadow: sidebarOpen ? '2px 0 16px var(--c-shadow-50)' : 'none',
+        } : {
+          /* Desktop: in-flow column, 260/58 collapse as before. */
+          width:sidebarOpen?260:58,transition:'width 0.2s ease',background:'var(--c-bg-deep)',
+          display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden',
+          borderRight:'1px solid var(--c-surface-raised)',
+        }}>
 
         {/* Logo */}
-        <div style={{padding:sidebarOpen?'18px 16px 14px':'18px 10px 14px',display:'flex',alignItems:'center',gap:0,cursor:'pointer',borderBottom:'1px solid var(--c-surface-raised)'}}
+        <div style={{padding:sidebarOpen?'18px 16px 14px':'18px 10px 14px',display:'flex',alignItems:'center',gap:0,cursor:'pointer',borderBottom:'1px solid var(--c-surface-raised)',flexShrink:0}}
           onClick={()=>setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.3</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.4</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -4147,7 +4287,7 @@ function TaskFlow({ session, onSignOut }){
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
         {/* Header bar - only show in Tasks tab */}
-        {mainTab==='tasks'&&<div style={{padding:'16px 24px',borderBottom:'1px solid var(--c-surface-raised)',display:'flex',alignItems:'center',gap:16,background:'var(--c-bg-deep)'}}>
+        {mainTab==='tasks'&&<div style={{padding:'16px 24px',paddingLeft:vp.isCompact&&!sidebarOpen?64:24,borderBottom:'1px solid var(--c-surface-raised)',display:'flex',alignItems:'center',gap:16,background:'var(--c-bg-deep)',flexWrap:'wrap'}}>
           <div style={{flex:1}}>
             <h1 style={{fontSize:22,fontWeight:600,display:'flex',alignItems:'center',gap:10,color:'var(--c-text)'}}>
               <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:7,
