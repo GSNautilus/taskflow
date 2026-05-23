@@ -211,16 +211,22 @@ const SUPABASE_ANON_KEY = 'sb_publishable_VFsG64zwQqH8JOy9ZnOpDQ_WBjiGs3G';
 const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
 const supabase = _sbConfigured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-/* ── Cloud persistence helpers ── */
+/* ── Cloud persistence helpers ──
+   loadSB THROWS on real errors (network, paused project, auth failure) so callers
+   can distinguish "Supabase unreachable" from "row not in table". Returning a
+   silent null for both was how the v0.1.9.4 data-loss bug happened: a paused
+   project produced empty snapshots that pruned out real backups. Only return
+   null when the row genuinely does not exist (or supabase isn't configured /
+   user not signed in).                                                       */
 async function loadSB(key) {
   if (!supabase) return null;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-    const { data, error } = await supabase.from('user_store').select('value').eq('user_id', user.id).eq('key', key).maybeSingle();
-    if (error) throw error;
-    return data ? data.value : null;
-  } catch (e) { console.warn('[SB] loadSB error:', e.message); return null; }
+  const { data: userData, error: authErr } = await supabase.auth.getUser();
+  if (authErr) { const e = new Error('auth.getUser failed: ' + authErr.message); e.sbError = true; throw e; }
+  const user = userData && userData.user;
+  if (!user) return null;
+  const { data, error } = await supabase.from('user_store').select('value').eq('user_id', user.id).eq('key', key).maybeSingle();
+  if (error) { const e = new Error('loadSB(' + key + ') failed: ' + error.message); e.sbError = true; throw e; }
+  return data ? data.value : null;
 }
 
 async function saveSB(key, value) {
@@ -248,9 +254,19 @@ async function deleteSB(key) {
   } catch (e) { console.warn('[SB] deleteSB error:', e.message); return false; }
 }
 
-/* ── Debounced save queue — batches rapid saves so Supabase isn't hammered ── */
+/* ── Debounced save queue — batches rapid saves so Supabase isn't hammered.
+   Writes are gated by _cloudWritesEnabled, which only flips true after the
+   initial sync has confirmed the cloud is reachable AND we have loaded the
+   real state. Without this gate, a paused/unreachable Supabase combined with
+   an empty localStorage (Firefox clear-on-close, fresh device, etc.) would
+   silently overwrite real cloud data with empty arrays. localStorage saves
+   continue regardless so the user can keep working offline.                 */
+let _cloudWritesEnabled = false;
+function enableCloudWrites() { _cloudWritesEnabled = true; }
+function disableCloudWrites() { _cloudWritesEnabled = false; }
 const _saveTimers = {};
 function debouncedSaveSB(key, value, delay = 800) {
+  if (!_cloudWritesEnabled) return; // Sync hasn't confirmed yet — refuse to write
   clearTimeout(_saveTimers[key]);
   _saveTimers[key] = setTimeout(() => saveSB(key, value), delay);
 }
@@ -263,10 +279,11 @@ const MAX_BACKUPS = 10;
 async function createLoginBackup() {
   if (!supabase) return false;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return false;
 
-    // Gather current cloud state
+    // Gather current cloud state. ANY read failure aborts — we will not write a
+    // partial/empty snapshot that could prune real backups out of the index.
     const tasks = await loadSB(TASK_KEY);
     const cats = await loadSB(CAT_KEY);
     const mainTab = await loadSB('taskflow-mainTab');
@@ -277,6 +294,19 @@ async function createLoginBackup() {
         const nodes = await loadSB(MM_DATA_PREFIX + p.id);
         if (nodes) mmNodes[p.id] = nodes;
       }
+    }
+
+    // Refuse to snapshot an entirely empty state. This is a second line of
+    // defense behind the load-failure throws: if every key happens to be
+    // genuinely missing we still don't want to bury real backups under a
+    // stack of "empty" entries.
+    const hasAnyData =
+      (Array.isArray(tasks) && tasks.length > 0) ||
+      (cats && typeof cats === 'object' && Object.keys(cats).length > 0) ||
+      (Array.isArray(mmProjects) && mmProjects.length > 0);
+    if (!hasAnyData) {
+      console.log('[Backup] Skipping snapshot — cloud state is empty');
+      return false;
     }
 
     const snapshot = { tasks, cats, mainTab, mmProjects, mmNodes, ts: new Date().toISOString() };
@@ -300,7 +330,8 @@ async function createLoginBackup() {
 }
 
 async function loadBackupIndex() {
-  return (await loadSB(BACKUP_INDEX_KEY)) || [];
+  try { return (await loadSB(BACKUP_INDEX_KEY)) || []; }
+  catch (e) { console.warn('[Backup] loadBackupIndex failed:', e.message); return []; }
 }
 
 async function restoreFromBackup(backupKey) {
@@ -3538,11 +3569,22 @@ function TaskFlow({ session, onSignOut }){
     if(c1||c2){setTasks(p2);saveLS(TASK_KEY,p2);}
   },[]);
 
-  // ── Supabase: initial sync on mount ──
-  const sbSyncedRef = useRef(false);
+  // ── Supabase: initial sync on mount (re-runnable via syncAttempt) ──
+  // Cloud writes are disabled until this completes successfully. A failed read
+  // (Supabase paused, network down, auth error) aborts the sync with status
+  // 'error' — no migration writes, no backup, no cloud writes from reactive
+  // useEffects. The user keeps working in localStorage and can click the red
+  // status dot to retry once Supabase is back up.
+  const sbSyncingRef = useRef(false);
+  const [syncAttempt, setSyncAttempt] = useState(0);
+  const retrySync = useCallback(() => {
+    if (sbSyncingRef.current) return;
+    setSyncAttempt(n => n + 1);
+  }, []);
   useEffect(() => {
-    if (!session || sbSyncedRef.current) return;
-    sbSyncedRef.current = true;
+    if (!session || sbSyncingRef.current) return;
+    sbSyncingRef.current = true;
+    disableCloudWrites();
     setCloudStatus('syncing');
     (async () => {
       try {
@@ -3623,18 +3665,26 @@ function TaskFlow({ session, onSignOut }){
           }
         }
 
+        // All reads succeeded — safe to enable reactive cloud writes
+        enableCloudWrites();
         setCloudStatus('synced');
 
-        // Create login backup after successful sync
+        // Create login backup ONLY after a confirmed successful sync. Skipping
+        // this when sync fails prevents the v0.1.9.4 data-loss case where 10
+        // failed-login empty snapshots prune real backups out of the index.
         createLoginBackup().then(ok => {
           if (ok) console.log('[Backup] Login snapshot saved');
         });
       } catch (e) {
         console.error('[SB] Initial sync failed:', e);
         setCloudStatus('error');
+        // Cloud writes stay disabled. User can keep working locally; clicking
+        // the red status dot calls retrySync to try again.
+      } finally {
+        sbSyncingRef.current = false;
       }
     })();
-  }, [session]);
+  }, [session, syncAttempt]);
 
   // Persist — localStorage always, Supabase when connected
   useEffect(()=>{saveLS(TASK_KEY,tasks); if(session) debouncedSaveSB(TASK_KEY, tasks);},[tasks]);
@@ -3858,7 +3908,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.4</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.5</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -4215,7 +4265,7 @@ function TaskFlow({ session, onSignOut }){
             const dot={width:7,height:7,borderRadius:'50%',flexShrink:0};
             if(cloudStatus==='synced')return <><span style={{...dot,background:'#6ecf6e'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Synced</span></>;
             if(cloudStatus==='syncing')return <><span style={{...dot,background:'#f0c040'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Syncing...</span></>;
-            if(cloudStatus==='error')return <><span style={{...dot,background:'#ff6b6b'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Sync error</span></>;
+            if(cloudStatus==='error')return <><span style={{...dot,background:'#ff6b6b'}}/><button onClick={retrySync} title="Retry sync" style={{background:'transparent',border:'none',padding:0,fontSize:11,color:'#ff6b6b',fontFamily:"'JetBrains Mono',monospace",flex:1,textAlign:'left',cursor:'pointer',textDecoration:'underline dotted',textUnderlineOffset:2}}>Sync error · retry</button></>;
             return <><span style={{...dot,background:'var(--c-text-dim)'}}/><span style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",flex:1}}>Local only</span></>;
           })()}
           {session&&<button onClick={async()=>{
@@ -4278,7 +4328,8 @@ function TaskFlow({ session, onSignOut }){
           {(()=>{
             const dot={width:7,height:7,borderRadius:'50%'};
             const c=cloudStatus==='synced'?'#6ecf6e':cloudStatus==='syncing'?'#f0c040':cloudStatus==='error'?'#ff6b6b':'var(--c-text-dim)';
-            return <span title={cloudStatus==='synced'?'Synced':cloudStatus==='syncing'?'Syncing...':cloudStatus==='error'?'Sync error':'Local only'} style={{...dot,background:c}}/>;
+            const onClick=cloudStatus==='error'?retrySync:undefined;
+            return <span onClick={onClick} title={cloudStatus==='synced'?'Synced':cloudStatus==='syncing'?'Syncing...':cloudStatus==='error'?'Sync error — click to retry':'Local only'} style={{...dot,background:c,cursor:cloudStatus==='error'?'pointer':'default'}}/>;
           })()}
         </div>}
       </div>
@@ -4524,16 +4575,13 @@ function AuthGate() {
         'Sign in with Google'
       ),
       authError && React.createElement('div', { style: { color: '#ff6b6b', fontSize: 13, marginTop: 4 } }, authError),
-      React.createElement('button', {
-        onClick: () => { /* skip auth, use localStorage only */ setSession({ skip: true }); },
-        style: { background: 'transparent', border: 'none', color: 'var(--c-text-dim)', fontSize: 13, cursor: 'pointer', marginTop: 4, fontFamily: "'IBM Plex Sans', sans-serif" },
-        onMouseEnter: e => e.currentTarget.style.color = 'var(--c-text-muted-9)',
-        onMouseLeave: e => e.currentTarget.style.color = 'var(--c-text-dim)'
-      }, 'Continue offline with local storage')
+      React.createElement('div', {
+        style: { fontSize: 12, color: 'var(--c-text-dim)', marginTop: 16, maxWidth: 360, textAlign: 'center', lineHeight: 1.5, fontFamily: "'IBM Plex Sans', sans-serif" }
+      }, 'No local-only mode — your data lives in the cloud. To back up or move data without signing in, use Import/Export from the sidebar after signing in.')
     );
   }
 
-  return React.createElement(TaskFlow, { session: session.skip ? null : session, onSignOut: session.skip ? null : handleSignOut });
+  return React.createElement(TaskFlow, { session: session, onSignOut: handleSignOut });
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<AuthGate/>);
