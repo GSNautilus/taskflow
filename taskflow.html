@@ -229,6 +229,28 @@ async function loadSB(key) {
   return data ? data.value : null;
 }
 
+/* ── Write-failure tracking. saveSB swallows errors and returns false, but
+   silent failures on the write side are the mirror of the read-side bug:
+   the user thinks the cloud is up-to-date when it isn't. We dispatch window
+   events on threshold-crossing so TaskFlow can flip cloudStatus accordingly.
+   Single transient failures don't trip — only a streak of SB_WRITE_FAIL_LIMIT
+   consecutive failures, to avoid red-flashing on every flaky save.         */
+const SB_WRITE_FAIL_LIMIT = 2;
+let _sbWriteFailures = 0;
+function _onSBWriteOK() {
+  if (_sbWriteFailures > 0) {
+    _sbWriteFailures = 0;
+    window.dispatchEvent(new CustomEvent('sb-write-recovered'));
+  }
+}
+function _onSBWriteFail(err) {
+  _sbWriteFailures++;
+  if (_sbWriteFailures >= SB_WRITE_FAIL_LIMIT) {
+    window.dispatchEvent(new CustomEvent('sb-write-failed', { detail: { message: err && err.message } }));
+  }
+}
+function resetSBWriteFailures() { _sbWriteFailures = 0; }
+
 async function saveSB(key, value) {
   if (!supabase) return false;
   try {
@@ -239,8 +261,9 @@ async function saveSB(key, value) {
       { onConflict: 'user_id,key' }
     );
     if (error) throw error;
+    _onSBWriteOK();
     return true;
-  } catch (e) { console.warn('[SB] saveSB error:', e.message); return false; }
+  } catch (e) { console.warn('[SB] saveSB error:', e.message); _onSBWriteFail(e); return false; }
 }
 
 async function deleteSB(key) {
@@ -310,13 +333,31 @@ async function createLoginBackup() {
     }
 
     const snapshot = { tasks, cats, mainTab, mmProjects, mmNodes, ts: new Date().toISOString() };
+
+    // Skip if this snapshot is byte-identical to the latest existing backup.
+    // Otherwise no-op logins (e.g. signing in daily without editing) rotate
+    // the index, pruning real recovery points out the back. JSON.stringify
+    // is fine here: both inputs come from the same Supabase round-trip flow,
+    // so key ordering stays consistent. A false negative (creating an
+    // unnecessary backup) is harmless; a false positive is impossible.
+    let index = (await loadSB(BACKUP_INDEX_KEY)) || [];
+    if (index.length > 0) {
+      const latest = await loadSB(index[0].key);
+      if (latest) {
+        const sig = s => JSON.stringify({ tasks: s.tasks, cats: s.cats, mainTab: s.mainTab, mmProjects: s.mmProjects, mmNodes: s.mmNodes });
+        if (sig(latest) === sig(snapshot)) {
+          console.log('[Backup] Skipping snapshot — identical to latest at', index[0].ts);
+          return false;
+        }
+      }
+    }
+
     const backupKey = BACKUP_DATA_PREFIX + snapshot.ts;
 
     // Save snapshot
     await saveSB(backupKey, snapshot);
 
     // Update index — keep last MAX_BACKUPS
-    let index = (await loadSB(BACKUP_INDEX_KEY)) || [];
     index.unshift({ ts: snapshot.ts, key: backupKey, taskCount: (tasks || []).length, projectCount: (mmProjects || []).length });
     // Prune old backups
     while (index.length > MAX_BACKUPS) {
@@ -3538,6 +3579,18 @@ function TaskFlow({ session, onSignOut }){
     return ()=>window.removeEventListener('ls-save-error',handler);
   },[]);
 
+  // Surface Supabase write failures. saveSB swallows errors and returns false;
+  // without this, the user has no signal that the cloud is silently stale.
+  // After SB_WRITE_FAIL_LIMIT consecutive failures, status flips to 'error' so
+  // the red retry dot appears. Any subsequent successful write flips back.
+  useEffect(()=>{
+    const onFail=()=>setCloudStatus(s=>s==='syncing'?s:'error');
+    const onOK=()=>setCloudStatus(s=>s==='error'?'synced':s);
+    window.addEventListener('sb-write-failed',onFail);
+    window.addEventListener('sb-write-recovered',onOK);
+    return ()=>{window.removeEventListener('sb-write-failed',onFail);window.removeEventListener('sb-write-recovered',onOK);};
+  },[]);
+
   // Keep root expanded when it changes
   useEffect(()=>{if(mm.rootId)setMmSidebarExpanded(prev=>{if(prev.has(mm.rootId))return prev;const n=new Set(prev);n.add(mm.rootId);return n;});},[mm.rootId]);
   const mmExpandAll=useCallback(()=>setMmSidebarExpanded(new Set(mm.nodes.map(n=>n.id))),[mm.nodes]);
@@ -3588,85 +3641,116 @@ function TaskFlow({ session, onSignOut }){
     setCloudStatus('syncing');
     (async () => {
       try {
-        // Load tasks from Supabase
-        const sbTasks = await loadSB(TASK_KEY);
-        if (sbTasks && Array.isArray(sbTasks) && sbTasks.length > 0) {
+        // ── Phase 1: READ everything from cloud. Any throw aborts before
+        //    we mutate React state OR write back to cloud. We carefully
+        //    distinguish null (row absent — safe to migrate local up) from
+        //    [] / {} (row exists, intentionally empty — cloud wins, don't
+        //    resurrect stale local data).
+        const sbTasks    = await loadSB(TASK_KEY);
+        const sbCats     = await loadSB(CAT_KEY);
+        const sbMainTab  = await loadSB('taskflow-mainTab');
+        const sbProjects = await loadSB(MM_PROJECTS_KEY);
+
+        // Decide the merged project list (purely a computation — no writes yet).
+        let localProjects = loadLS(MM_PROJECTS_KEY, []);
+        let droppedAutoDefaults = [];
+        let mergedProjects;
+        const cloudHasProjects = Array.isArray(sbProjects) && sbProjects.length > 0;
+        if (cloudHasProjects) {
+          // Drop local _autoDefault stubs (Firefox clear-on-close spawns one
+          // every visit) that aren't on cloud.
+          const sbIds = new Set(sbProjects.map(p => p.id));
+          droppedAutoDefaults = localProjects.filter(p => p._autoDefault && !sbIds.has(p.id));
+          if (droppedAutoDefaults.length > 0) {
+            localProjects = localProjects.filter(p => !(p._autoDefault && !sbIds.has(p.id)));
+          }
+          const mergedMap = new Map();
+          localProjects.forEach(p => mergedMap.set(p.id, p));
+          sbProjects.forEach(p => { if (!mergedMap.has(p.id)) mergedMap.set(p.id, p); });
+          mergedProjects = [...mergedMap.values()];
+        } else if (sbProjects === null) {
+          // Row truly missing — local will get migrated up in Phase 3
+          mergedProjects = localProjects;
+        } else {
+          // Cloud has [] — respect the empty state, don't resurrect local
+          mergedProjects = [];
+        }
+
+        // Read every project's nodes up front. A throw here still aborts
+        // before any cloud write happens.
+        const nodeData = {}; // pid -> { sb, local }
+        for (const p of mergedProjects) {
+          const sb = await loadSB(MM_DATA_PREFIX + p.id);
+          const local = loadLS(MM_DATA_PREFIX + p.id, []);
+          nodeData[p.id] = { sb, local };
+        }
+
+        // ── Phase 2: APPLY to React state + localStorage. No cloud writes
+        //    happen here; debouncedSaveSB is still gated (disableCloudWrites
+        //    above), so the persist useEffects below trigger LS-only saves.
+        if (Array.isArray(sbTasks)) {                  // cloud wins — including []
           setTasks(sbTasks);
-        } else if (tasks.length > 0) {
-          // First-time migration: push localStorage tasks to Supabase
+        }
+        if (sbCats && typeof sbCats === 'object') {    // cloud wins — including {}
+          setCategories(sbCats);
+        }
+        if (sbMainTab) {
+          setMainTabRaw(sbMainTab);
+          saveLS('taskflow-mainTab', sbMainTab);
+        }
+
+        // Clean up auto-default stubs we dropped earlier
+        droppedAutoDefaults.forEach(p => { try { localStorage.removeItem(MM_DATA_PREFIX + p.id); } catch(e) {} });
+
+        // Apply mindmap projects + per-project nodes to React state / LS
+        saveLS(MM_PROJECTS_KEY, mergedProjects);
+        for (const [pid, { sb, local }] of Object.entries(nodeData)) {
+          const sbCount = Array.isArray(sb) ? sb.length : 0;
+          const localCount = Array.isArray(local) ? local.length : 0;
+          if (sbCount > localCount && Array.isArray(sb)) {
+            saveLS(MM_DATA_PREFIX + pid, sb);
+          }
+          // local >= cloud: keep local in LS; Phase 3 will push it up
+        }
+        window.__sbMindmapSynced = true;
+        const currentActive = mm.activeProjectId;
+        if (mergedProjects.length > 0 && currentActive && !mergedProjects.find(p => p.id === currentActive)) {
+          mm.switchProject(mergedProjects[0].id);
+        }
+        mm.persistProjects(mergedProjects); // debouncedSaveSB gated — LS only
+
+        // ── Phase 3: WRITE migrations. Only fires once every read has
+        //    succeeded, so we never half-commit cloud state. Migrate ONLY
+        //    when the cloud row is genuinely absent (sb*** === null);
+        //    never overwrite an explicitly-empty cloud row with stale
+        //    local data ("phantom resurrection" fix).
+        if (sbTasks === null && tasks.length > 0) {
           await saveSB(TASK_KEY, tasks);
         }
-
-        // Load categories
-        const sbCats = await loadSB(CAT_KEY);
-        if (sbCats && typeof sbCats === 'object' && Object.keys(sbCats).length > 0) {
-          setCategories(sbCats);
-        } else {
+        if (sbCats === null) {
           await saveSB(CAT_KEY, categories);
         }
-
-        // Load mainTab
-        const sbTab = await loadSB('taskflow-mainTab');
-        if (sbTab) { setMainTabRaw(sbTab); saveLS('taskflow-mainTab', sbTab); }
-
-        // Load mindmap projects — merge local + cloud, prefer whichever has more data
-        const sbProjects = await loadSB(MM_PROJECTS_KEY);
-        let localProjects = loadLS(MM_PROJECTS_KEY, []);
-        if (sbProjects && Array.isArray(sbProjects) && sbProjects.length > 0) {
-          // Drop any local project that was auto-created this session by the
-          // useMindmap initializer (flag _autoDefault) and isn't known to the
-          // cloud. Without this, Firefox's "clear on close" behavior spawns a
-          // ghost "My Project" every login that gets merged and re-uploaded.
-          const sbIds = new Set(sbProjects.map(p => p.id));
-          const dropped = localProjects.filter(p => p._autoDefault && !sbIds.has(p.id));
-          if (dropped.length > 0) {
-            dropped.forEach(p => { try { localStorage.removeItem(MM_DATA_PREFIX + p.id); } catch(e) {} });
-            localProjects = localProjects.filter(p => !(p._autoDefault && !sbIds.has(p.id)));
-            saveLS(MM_PROJECTS_KEY, localProjects);
-          }
-          // Merge project lists: keep all projects from both sources
-          const mergedProjectMap = new Map();
-          localProjects.forEach(p => mergedProjectMap.set(p.id, p));
-          sbProjects.forEach(p => { if (!mergedProjectMap.has(p.id)) mergedProjectMap.set(p.id, p); });
-          const mergedProjects = [...mergedProjectMap.values()];
-          saveLS(MM_PROJECTS_KEY, mergedProjects);
+        if (cloudHasProjects) {
+          // Save the merged project list back so cloud reflects local-only entries
           await saveSB(MM_PROJECTS_KEY, mergedProjects);
-          // For each project, keep whichever version has more nodes (local or cloud)
-          for (const p of mergedProjects) {
-            const sbNodes = await loadSB(MM_DATA_PREFIX + p.id);
+          for (const [pid, { sb, local }] of Object.entries(nodeData)) {
+            const sbCount = Array.isArray(sb) ? sb.length : 0;
+            const localCount = Array.isArray(local) ? local.length : 0;
+            if (localCount > sbCount) await saveSB(MM_DATA_PREFIX + pid, local);
+          }
+        } else if (sbProjects === null && localProjects.length > 0) {
+          // No project row on cloud at all — migrate local up
+          await saveSB(MM_PROJECTS_KEY, localProjects);
+          for (const p of localProjects) {
             const localNodes = loadLS(MM_DATA_PREFIX + p.id, []);
-            const sbCount = Array.isArray(sbNodes) ? sbNodes.length : 0;
-            const localCount = Array.isArray(localNodes) ? localNodes.length : 0;
-            if (sbCount > localCount) {
-              // Cloud has more — update local
-              saveLS(MM_DATA_PREFIX + p.id, sbNodes);
-            } else if (localCount > sbCount) {
-              // Local has more — update cloud
-              await saveSB(MM_DATA_PREFIX + p.id, localNodes);
-            }
-            // If equal count, keep local (it's more likely to be current)
-          }
-          window.__sbMindmapSynced = true;
-          // Only switch if the current active project isn't in the merged list
-          const currentActive = mm.activeProjectId;
-          if (currentActive && !mergedProjects.find(p => p.id === currentActive)) {
-            mm.switchProject(mergedProjects[0].id);
-          }
-          // Update projects list in React state without switching
-          mm.persistProjects(mergedProjects);
-        } else {
-          // No cloud data — migrate local to Supabase
-          if (localProjects.length > 0) {
-            await saveSB(MM_PROJECTS_KEY, localProjects);
-            for (const p of localProjects) {
-              const localNodes = loadLS(MM_DATA_PREFIX + p.id, []);
-              if (localNodes.length > 0) await saveSB(MM_DATA_PREFIX + p.id, localNodes);
-            }
+            if (localNodes.length > 0) await saveSB(MM_DATA_PREFIX + p.id, localNodes);
           }
         }
+        // sbProjects === [] case: cloud explicitly empty — leave it alone
 
-        // All reads succeeded — safe to enable reactive cloud writes
+        // All reads succeeded AND writes are now consistent — enable reactive cloud writes
         enableCloudWrites();
+        resetSBWriteFailures(); // any prior write-failure error state is moot
         setCloudStatus('synced');
 
         // Create login backup ONLY after a confirmed successful sync. Skipping
@@ -3908,7 +3992,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.5</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.6</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
