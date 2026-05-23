@@ -104,26 +104,29 @@
 }
 
 html[data-theme="light"] {
-  --c-bg:              #f0f2f5;
-  --c-bg-deep:         #e4e7ec;
+  /* Backgrounds — pure whites kept where the original used #ffffff, every other
+     surface is nudged a hair darker and de-blued (was a cool grey trending blue;
+     now a neutral warm grey). */
+  --c-bg:              #e8e8e8;
+  --c-bg-deep:         #dcdcdc;
   --c-bg-dropdown:     #ffffff;
-  --c-bg-cool:         #e4e8f0;
+  --c-bg-cool:         #dfdfe0;
   --c-surface:         #ffffff;
-  --c-surface-2:       #f5f7fa;
-  --c-surface-3:       #eef0f3;
-  --c-surface-3b:      #e8ebf0;
-  --c-surface-raised:  #e2e6ec;
-  --c-surface-cool:    #dce0e8;
-  --c-surface-cool-2:  #d4dae4;
+  --c-surface-2:       #efefef;
+  --c-surface-3:       #e7e7e7;
+  --c-surface-3b:      #e3e3e3;
+  --c-surface-raised:  #dadada;
+  --c-surface-cool:    #d2d2d3;
+  --c-surface-cool-2:  #cacacb;
   --c-surface-modal:   #ffffff;
-  --c-surface-elev:    #f5f7fa;
-  --c-surface-hover:   #d0d5dc;
-  --c-surface-hi:      #c4cad3;
-  --c-surface-hi-2:    #b8bec8;
+  --c-surface-elev:    #efefef;
+  --c-surface-hover:   #c4c4c5;
+  --c-surface-hi:      #b8b8b9;
+  --c-surface-hi-2:    #acacad;
 
-  --c-border:          #cfd4dc;
-  --c-border-weak:     #b8bec8;
-  --c-border-strong:   #a4aab5;
+  --c-border:          #c4c4c4;
+  --c-border-weak:     #b2b2b2;
+  --c-border-strong:   #9c9c9c;
 
   --c-text:            #1a1f2e;
   --c-text-pale:       #2a2f3e;
@@ -179,6 +182,87 @@ html[data-theme="light"] {
   --c-status-urgent-bg:  #f8d4d4;
 }
 
+/* ════════════════════════════════════════════════
+   Sepia — warm parchment / scholarly. Sits between
+   light and dark in luminosity; brown ink on aged
+   paper, amber accent in place of cool blue.
+   ════════════════════════════════════════════════ */
+html[data-theme="sepia"] {
+  --c-bg:              #ece1c8;
+  --c-bg-deep:         #e0d3b4;
+  --c-bg-dropdown:     #f6ecd4;
+  --c-bg-cool:         #e6dabe;
+  --c-surface:         #f4ead2;
+  --c-surface-2:       #ede2c6;
+  --c-surface-3:       #e6dabb;
+  --c-surface-3b:      #e2d6b6;
+  --c-surface-raised:  #dccfac;
+  --c-surface-cool:    #d4c7a0;
+  --c-surface-cool-2:  #ccbf94;
+  --c-surface-modal:   #f4ead2;
+  --c-surface-elev:    #ede2c6;
+  --c-surface-hover:   #c8bb90;
+  --c-surface-hi:      #bcaf84;
+  --c-surface-hi-2:    #b0a378;
+
+  --c-border:          #bfae87;
+  --c-border-weak:     #ad9c75;
+  --c-border-strong:   #8e7e58;
+
+  --c-text:            #3a2c1c;
+  --c-text-pale:       #463624;
+  --c-text-pale-2:     #54422e;
+  --c-text-secondary:  #62503a;
+  --c-text-secondary-2:#695540;
+  --c-text-secondary-3:#705c46;
+  --c-text-secondary-4:#6c5842;
+  --c-text-secondary-5:#6e5a3c;
+  --c-text-secondary-6:#736044;
+  --c-text-cool:       #6a583a;
+  --c-text-cool-2:     #786642;
+  --c-text-cool-3:     #88744a;
+  --c-text-faint-cool: #9a8456;
+  --c-text-muted:      #80715a;
+  --c-text-muted-2:    #84755e;
+  --c-text-muted-3:    #887962;
+  --c-text-muted-4:    #8a7c64;
+  --c-text-muted-5:    #8c7e66;
+  --c-text-muted-6:    #8e8068;
+  --c-text-muted-7:    #90826a;
+  --c-text-muted-8:    #92846c;
+  --c-text-muted-9:    #94866e;
+  --c-text-muted-10:   #968870;
+  --c-text-dim:        #a09080;
+  --c-text-dim-2:      #a49484;
+
+  --c-accent:          #9c5a1e;
+  --c-accent-08:       rgba(156,90,30,0.10);
+  --c-accent-12:       rgba(156,90,30,0.15);
+  --c-accent-25:       rgba(156,90,30,0.25);
+  --c-accent-30:       rgba(156,90,30,0.32);
+  --c-accent-06:       rgba(156,90,30,0.08);
+  --c-accent-10:       rgba(156,90,30,0.12);
+  --c-accent-16:       rgba(156,90,30,0.20);
+  --c-accent-03:       rgba(156,90,30,0.05);
+  --c-accent-cool-50:  rgba(180,160,120,0.5);
+  --c-accent-cool-30:  rgba(180,160,120,0.3);
+
+  --c-shadow-60:       rgba(60,40,20,0.28);
+  --c-shadow-50:       rgba(60,40,20,0.20);
+  --c-shadow-40:       rgba(60,40,20,0.13);
+  --c-white-12:        rgba(60,40,20,0.09);
+  --c-white-08:        rgba(60,40,20,0.06);
+  --c-white-03:        rgba(60,40,20,0.03);
+  --c-white-02:        rgba(60,40,20,0.02);
+
+  --c-status-done-bg:    #cdd6b0;
+  --c-status-tmrw-bg:    #ecd9a8;
+  --c-status-weekly-bg:  #c8cfd0;
+  --c-status-monthly-bg: #e8c8a0;
+  --c-status-long-bg:    #d4c4d0;
+  --c-status-urgent-bg:  #e0bdae;
+}
+
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;width:100%;overflow:hidden}
 body{background:var(--c-bg);color:var(--c-text);font-family:var(--font-sans);transition:background 0.2s ease,color 0.2s ease}
@@ -196,7 +280,7 @@ input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
 <body>
 <script>
   /* Set theme attribute before React mounts to avoid a flash on light-theme users */
-  try { var t = JSON.parse(localStorage.getItem('taskflow-theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else document.documentElement.dataset.theme = 'dark'; } catch(e) { document.documentElement.dataset.theme = 'dark'; }
+  try { var t = JSON.parse(localStorage.getItem('taskflow-theme')); if (t === 'light' || t === 'dark' || t === 'sepia') document.documentElement.dataset.theme = t; else document.documentElement.dataset.theme = 'dark'; } catch(e) { document.documentElement.dataset.theme = 'dark'; }
 </script>
 <div id="root"></div>
 <script type="text/babel">
@@ -3547,7 +3631,8 @@ function TaskFlow({ session, onSignOut }){
   }, [vp.isCompact]);
   const[theme,setTheme]=useState(()=>loadLS('taskflow-theme','dark'));
   useEffect(()=>{document.documentElement.dataset.theme=theme;saveLS('taskflow-theme',theme);},[theme]);
-  const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
+  // Cycle: dark → sepia → light → dark
+  const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'sepia':(t==='sepia'?'light':'dark')),[]);
   const[showCatMgr,setShowCatMgr]=useState(false);
   const[showImportExport,setShowImportExport]=useState(false);
   const[showMmImportExport,setShowMmImportExport]=useState(false);
@@ -4360,9 +4445,9 @@ function TaskFlow({ session, onSignOut }){
           }} title="Backups"
             style={{border:'none',background:showBackups?'var(--c-surface-raised)':'transparent',color:showBackups?'var(--c-text)':'var(--c-border-strong)',cursor:'pointer',fontSize:12,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'all 0.15s',borderRadius:3}}
             onMouseEnter={e=>{if(!showBackups)e.currentTarget.style.color='var(--c-text-muted-9)';}} onMouseLeave={e=>{if(!showBackups)e.currentTarget.style.color='var(--c-border-strong)';}}>⟲</button>}
-          <button onClick={toggleTheme} title={theme==='dark'?'Switch to light theme':'Switch to dark theme'}
+          <button onClick={toggleTheme} title={theme==='dark'?'Switch to sepia theme':(theme==='sepia'?'Switch to light theme':'Switch to dark theme')}
             style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:13,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
-            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>{theme==='dark'?'☀':'☾'}</button>
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>{theme==='dark'?'※':(theme==='sepia'?'☀':'☾')}</button>
           {onSignOut&&<button onClick={onSignOut} title="Sign out"
             style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:13,padding:'2px 4px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
             onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>↪</button>}
