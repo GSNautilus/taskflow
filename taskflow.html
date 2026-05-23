@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TaskFlow</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='t' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23e0e4ea'/%3E%3Cstop offset='100%25' stop-color='%23b0b8c8'/%3E%3C/linearGradient%3E%3ClinearGradient id='f' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%234a9eff'/%3E%3Cstop offset='100%25' stop-color='%23b080e0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23161616'/%3E%3Ctext x='16' y='16' text-anchor='middle' dominant-baseline='central' font-family='JetBrains Mono,monospace' font-weight='700' font-size='28' letter-spacing='-2'%3E%3Ctspan fill='url(%23t)'%3ET%3C/tspan%3E%3Ctspan fill='url(%23f)'%3EF%3C/tspan%3E%3C/text%3E%3C/svg%3E">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Dancing+Script:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -98,10 +98,18 @@
   --c-status-long-bg:    #2a1a3e;
   --c-status-urgent-bg:  #4a1a1a;
 
-  /* Typography (room to grow — swap fonts per theme) */
+  /* Typography. --font-sans is overridden by html[data-font="..."]; --font-mono
+     stays JetBrains Mono so badges/keyboard hints don't get unreadable.       */
   --font-sans:  'IBM Plex Sans', sans-serif;
   --font-mono:  'JetBrains Mono', monospace;
 }
+
+/* Font cycle: sans (default) → serif → cursive.
+   Cursive is bumped up a notch in size because Dancing Script reads visually
+   smaller than the equivalent sans/serif at the same pixel size. */
+html[data-font="serif"]   { --font-sans: 'Lora', Georgia, 'Times New Roman', serif; }
+html[data-font="cursive"] { --font-sans: 'Dancing Script', 'Brush Script MT', cursive; }
+html[data-font="cursive"] body { font-size: 17px; }
 
 html[data-theme="light"] {
   /* Backgrounds — pure whites kept where the original used #ffffff, every other
@@ -115,7 +123,10 @@ html[data-theme="light"] {
   --c-surface-2:       #efefef;
   --c-surface-3:       #e7e7e7;
   --c-surface-3b:      #e3e3e3;
-  --c-surface-raised:  #dadada;
+  /* --c-surface-raised is used both as elevated chip background and as the
+     1px panel divider color throughout the layout. Darker than the
+     surrounding surfaces so panel borders read clearly on light backgrounds. */
+  --c-surface-raised:  #b6b6b6;
   --c-surface-cool:    #d2d2d3;
   --c-surface-cool-2:  #cacacb;
   --c-surface-modal:   #ffffff;
@@ -124,9 +135,9 @@ html[data-theme="light"] {
   --c-surface-hi:      #b8b8b9;
   --c-surface-hi-2:    #acacad;
 
-  --c-border:          #c4c4c4;
-  --c-border-weak:     #b2b2b2;
-  --c-border-strong:   #9c9c9c;
+  --c-border:          #a4a4a4;
+  --c-border-weak:     #989898;
+  --c-border-strong:   #7a7a7a;
 
   --c-text:            #1a1f2e;
   --c-text-pale:       #2a2f3e;
@@ -196,7 +207,9 @@ html[data-theme="sepia"] {
   --c-surface-2:       #ede2c6;
   --c-surface-3:       #e6dabb;
   --c-surface-3b:      #e2d6b6;
-  --c-surface-raised:  #dccfac;
+  /* Darker than light's because the parchment bg is warmer/lighter; pushes
+     the major panel dividers visible against the cream. */
+  --c-surface-raised:  #b8a778;
   --c-surface-cool:    #d4c7a0;
   --c-surface-cool-2:  #ccbf94;
   --c-surface-modal:   #f4ead2;
@@ -205,9 +218,9 @@ html[data-theme="sepia"] {
   --c-surface-hi:      #bcaf84;
   --c-surface-hi-2:    #b0a378;
 
-  --c-border:          #bfae87;
-  --c-border-weak:     #ad9c75;
-  --c-border-strong:   #8e7e58;
+  --c-border:          #9c8a60;
+  --c-border-weak:     #877548;
+  --c-border-strong:   #6c5b34;
 
   --c-text:            #3a2c1c;
   --c-text-pale:       #463624;
@@ -281,6 +294,7 @@ input[type="color"]::-webkit-color-swatch{border:none;border-radius:5px}
 <script>
   /* Set theme attribute before React mounts to avoid a flash on light-theme users */
   try { var t = JSON.parse(localStorage.getItem('taskflow-theme')); if (t === 'light' || t === 'dark' || t === 'sepia') document.documentElement.dataset.theme = t; else document.documentElement.dataset.theme = 'dark'; } catch(e) { document.documentElement.dataset.theme = 'dark'; }
+  try { var f = JSON.parse(localStorage.getItem('taskflow-font'));  if (f === 'sans' || f === 'serif' || f === 'cursive') document.documentElement.dataset.font = f; else document.documentElement.dataset.font = 'sans'; } catch(e) { document.documentElement.dataset.font = 'sans'; }
 </script>
 <div id="root"></div>
 <script type="text/babel">
@@ -1306,14 +1320,14 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         const barColor=hasChildren?(task.collapsed?'var(--c-accent)':'#6ecf6e'):(s.color||'var(--c-text-dim)');
         return(
           <div onClick={e=>{e.stopPropagation();if(hasChildren)onToggleCollapse(task.id);else if(depth<3)onAddSubtask(task.id);}}
-            style={{position:'absolute',left:0,top:0,bottom:0,width:5,
+            style={{position:'absolute',left:0,top:0,bottom:0,width:10,
               background:hasChildren?barColor:'transparent',
-              borderLeft:hasChildren?'none':('2px solid '+barColor+'44'),
+              borderLeft:hasChildren?'none':('3px solid '+barColor+'55'),
               cursor:hasChildren||(depth<3)?'pointer':'default',
               transition:'all 0.2s',borderRadius:'8px 0 0 8px',
             }}
-            onMouseEnter={e=>{if(hasChildren)e.currentTarget.style.opacity='0.7';else if(depth<3)e.currentTarget.style.borderLeftColor=barColor+'88';}}
-            onMouseLeave={e=>{if(hasChildren)e.currentTarget.style.opacity='1';else if(depth<3)e.currentTarget.style.borderLeftColor=barColor+'44';}}
+            onMouseEnter={e=>{if(hasChildren)e.currentTarget.style.opacity='0.7';else if(depth<3)e.currentTarget.style.borderLeftColor=barColor+'aa';}}
+            onMouseLeave={e=>{if(hasChildren)e.currentTarget.style.opacity='1';else if(depth<3)e.currentTarget.style.borderLeftColor=barColor+'55';}}
             title={hasChildren?(task.collapsed?'Expand subtasks':'Collapse subtasks'):(depth<3?'Add subtask':'')}/>
         );
       })()}
@@ -1338,10 +1352,10 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
         {editing?(
           <input ref={inp} value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={donEdit}
             onKeyDown={e=>{if(e.key==='Enter')donEdit();if(e.key==='Escape')setEditing(false);}}
-            style={{border:'none',outline:'none',background:'var(--c-bg)',padding:'4px 8px',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:15,borderRadius:4,boxShadow:'0 0 0 2px var(--c-accent)',color:'var(--c-text-pale)',width:'100%'}}/>
+            style={{border:'none',outline:'none',background:'var(--c-bg)',padding:'4px 8px',fontFamily:'var(--font-sans)',fontSize:15,borderRadius:4,boxShadow:'0 0 0 2px var(--c-accent)',color:'var(--c-text-pale)',width:'100%'}}/>
         ):(
           <span onClick={e=>{e.stopPropagation();setEditing(true);setEditVal(task.title);}} style={{
-            fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",
+            fontSize:15,fontFamily:'var(--font-sans)',
             color:task.status==='x'?'#5a8a5a':(task.status==='s'?'var(--c-text-dim)':'var(--c-text)'),
             textDecoration:task.status==='x'?'line-through':'none',
             overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.35,
@@ -1439,7 +1453,7 @@ function CategoryManager({categories,onUpdate}){
       <div style={{display:'flex',gap:10,alignItems:'center',marginTop:8}}>
         <input type="color" value={nc} onChange={e=>setNc(e.target.value)} style={{width:32,height:32,border:'none',borderRadius:5,padding:0}}/>
         <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="New category name..." onKeyDown={e=>{if(e.key==='Enter')add();}}
-          style={{flex:1,border:'1px solid var(--c-surface-hi)',borderRadius:6,padding:'8px 12px',fontSize:14,background:'var(--c-surface-3)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+          style={{flex:1,border:'1px solid var(--c-surface-hi)',borderRadius:6,padding:'8px 12px',fontSize:14,background:'var(--c-surface-3)',color:'var(--c-text)',fontFamily:'var(--font-sans)',outline:'none'}}/>
         <button onClick={add} style={{border:'none',borderRadius:6,padding:'8px 18px',fontSize:14,background:'var(--c-accent)',color:'var(--c-text)',cursor:'pointer',fontWeight:600}}>Add</button>
       </div>
     </div>
@@ -1708,7 +1722,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             position:'relative',cursor:'grab',
             boxShadow:isSelected?'0 0 12px var(--c-accent-30)':'none',
             opacity:isChecked?0.55:1,
-            transition:'border-color 0.2s, box-shadow 0.2s',fontFamily:"'IBM Plex Sans',sans-serif",
+            transition:'border-color 0.2s, box-shadow 0.2s',fontFamily:'var(--font-sans)',
             fontSize:isRoot?15:13,fontWeight:isRoot?600:500,color:isChecked?'var(--c-text-dim)':'var(--c-text)',
             overflow:'hidden',userSelect:'none',display:'flex',flexDirection:'column'
           }}>
@@ -1756,13 +1770,13 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
                     onBlur={finishNotesEdit}
                     onKeyDown={e=>{if(e.key==='Escape'){setEditingNotes(false);setNotesVal(node.notes||'');if(!node.notes?.trim()&&node.notesExpanded)onToggleNodeNotes(true);}}}
                     style={{flex:1,border:'none',outline:'none',background:'transparent',color:'var(--c-text)',
-                      fontSize:11,lineHeight:'1.4',fontFamily:"'IBM Plex Sans',sans-serif",
+                      fontSize:11,lineHeight:'1.4',fontFamily:'var(--font-sans)',
                       padding:'2px 0 6px',resize:'none',minHeight:0,width:'100%',cursor:'text'}}/>
                 </div>
               ) : (
                 <div onDoubleClick={e=>{e.stopPropagation();setEditingNotes(true);}} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
                   style={{flex:1,padding:'0 12px 6px',fontSize:11,color:hasNotes?'var(--c-text-cool)':'var(--c-text-dim)',lineHeight:'1.4',
-                    fontFamily:"'IBM Plex Sans',sans-serif",whiteSpace:'pre-wrap',wordWrap:'break-word',
+                    fontFamily:'var(--font-sans)',whiteSpace:'pre-wrap',wordWrap:'break-word',
                     borderTop:'1px solid var(--c-border)',marginLeft:12,marginRight:8,paddingTop:4,
                     overflow:'auto',minHeight:0,cursor:'text'}}>
                   {hasNotes ? node.notes : 'Double-click to add notes...'}
@@ -1826,7 +1840,7 @@ function MindmapNodeEditor({ node, position, onSave, onCancel }) {
           onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSave(val);}else if(e.key==='Escape'){e.preventDefault();onCancel();}}}
           onBlur={()=>onCancel()} onClick={e=>e.stopPropagation()}
           style={{width:'100%',background:'transparent',border:'none',color:'var(--c-text)',
-            fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,fontWeight:500,outline:'none',padding:0}}/>
+            fontFamily:'var(--font-sans)',fontSize:14,fontWeight:500,outline:'none',padding:0}}/>
       </div>
     </foreignObject>
   );
@@ -2336,7 +2350,7 @@ function MindmapTreeItem({ nodeId, nodes, depth, selectedId, onSelect, expandedI
           cursor:'pointer',
           background:isSelected?'var(--c-accent-12)':'transparent',
           borderLeft:isSelected?'2px solid var(--c-accent)':'2px solid transparent',
-          transition:'all 0.12s',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",
+          transition:'all 0.12s',fontSize:14,fontFamily:'var(--font-sans)',
           color:isSelected?'var(--c-text)':node.checked?'var(--c-text-muted-2)':'var(--c-text-secondary-5)',
         }}
         onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background='var(--c-white-03)';}}
@@ -2715,7 +2729,7 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       {toast && (
         <div style={{position:'absolute',bottom:16,left:'50%',transform:'translateX(-50%)',
           background:'var(--c-surface-3)',border:'1px solid var(--c-border)',borderRadius:8,
-          padding:'10px 20px',fontSize:13,color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",
+          padding:'10px 20px',fontSize:13,color:'var(--c-text)',fontFamily:'var(--font-sans)',
           boxShadow:'0 4px 16px var(--c-shadow-50)',
           animation:'fadeInUp 0.2s ease-out',whiteSpace:'nowrap',
           display:'flex',alignItems:'center',gap:8}}>
@@ -3279,7 +3293,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                       <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(minToPct(addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS),85)+'%',left:2,right:2,background:'var(--c-surface-3)',border:'1px solid var(--c-accent)',borderRadius:4,padding:'6px',zIndex:20}}>
                         <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(weekDateStr);if(e.key==='Escape')cancelAdding();}}
                           placeholder="New task..." autoFocus
-                          style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:11,marginBottom:4}}/>
+                          style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'var(--c-text)',fontFamily:'var(--font-sans)',fontSize:11,marginBottom:4}}/>
                         <div style={{display:'flex',gap:3}}>
                           <button onClick={e=>{e.stopPropagation();handleAddTask(weekDateStr);}} style={{flex:1,border:'none',borderRadius:3,padding:'3px',background:'var(--c-accent)',color:'var(--c-text)',fontSize:9,cursor:'pointer',fontWeight:600}}>Add</button>
                           <button onClick={e=>{e.stopPropagation();cancelAdding();}} style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'3px',background:'transparent',color:'var(--c-text-muted-3)',fontSize:9,cursor:'pointer'}}>Cancel</button>
@@ -3381,7 +3395,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
             <div style={{display:'flex',flexDirection:'column',gap:4}} onClick={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}>
               <input value={editTitle} onChange={e=>setEditTitle(e.target.value)} autoFocus
                 onKeyDown={e=>{if(e.key==='Enter')saveEdit();if(e.key==='Escape')cancelEdit();}}
-                style={{border:'1px solid var(--c-accent)',borderRadius:4,padding:'3px 6px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:'100%'}}/>
+                style={{border:'1px solid var(--c-accent)',borderRadius:4,padding:'3px 6px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:'var(--font-sans)',outline:'none',width:'100%'}}/>
               <div style={{display:'flex',gap:4,alignItems:'center'}}>
                 <input type="time" value={editStart} onChange={e=>setEditStart(e.target.value)}
                   style={{flex:1,border:'1px solid var(--c-border)',borderRadius:3,padding:'2px 4px',fontSize:10,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'JetBrains Mono',monospace",outline:'none'}}/>
@@ -3547,7 +3561,7 @@ function CalendarView({tasks,categories,onAddTask,onSelectTask,onChangeStatus,on
                 <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:Math.min(((addStartTime?parseInt(addStartTime.split(':')[0])*60+parseInt(addStartTime.split(':')[1]):EARLY_MINS)-(earlyExpanded?0:EARLY_MINS)),((earlyExpanded?24:(24-EARLY_HOUR))*60-100))+'px',left:'16px',right:'16px',background:'var(--c-surface-3)',border:'1px solid var(--c-accent)',borderRadius:6,padding:'12px',zIndex:20}}>
                   <input value={addInput} onChange={e=>setAddInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleAddTask(currentDateStr);if(e.key==='Escape')cancelAdding();}}
                     placeholder="New task..." autoFocus
-                    style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontSize:14,marginBottom:8}}/>
+                    style={{border:'none',outline:'none',background:'transparent',width:'100%',color:'var(--c-text)',fontFamily:'var(--font-sans)',fontSize:14,marginBottom:8}}/>
                   <div style={{fontSize:11,color:'var(--c-text-muted)',fontFamily:"'JetBrains Mono',monospace",marginBottom:8}}>
                     {addStartTime}{addEndTime?' → '+addEndTime:''} <span style={{color:'var(--c-border-strong)'}}>(drag to adjust)</span>
                   </div>
@@ -3633,6 +3647,10 @@ function TaskFlow({ session, onSignOut }){
   useEffect(()=>{document.documentElement.dataset.theme=theme;saveLS('taskflow-theme',theme);},[theme]);
   // Cycle: dark → sepia → light → dark
   const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'sepia':(t==='sepia'?'light':'dark')),[]);
+  const[font,setFont]=useState(()=>loadLS('taskflow-font','sans'));
+  useEffect(()=>{document.documentElement.dataset.font=font;saveLS('taskflow-font',font);},[font]);
+  // Cycle: sans → serif → cursive → sans
+  const toggleFont=useCallback(()=>setFont(f=>f==='sans'?'serif':(f==='serif'?'cursive':'sans')),[]);
   const[showCatMgr,setShowCatMgr]=useState(false);
   const[showImportExport,setShowImportExport]=useState(false);
   const[showMmImportExport,setShowMmImportExport]=useState(false);
@@ -4032,7 +4050,7 @@ function TaskFlow({ session, onSignOut }){
     <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
 
       {/* localStorage warning banner */}
-      {lsError&&<div style={{position:'fixed',top:0,left:0,right:0,zIndex:9999,background:'#4a1a1a',borderBottom:'2px solid #ff6b6b',padding:'10px 16px',display:'flex',alignItems:'center',gap:8,fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13,color:'#ff9a9a',animation:'fadeIn 0.3s'}}>
+      {lsError&&<div style={{position:'fixed',top:0,left:0,right:0,zIndex:9999,background:'#4a1a1a',borderBottom:'2px solid #ff6b6b',padding:'10px 16px',display:'flex',alignItems:'center',gap:8,fontFamily:'var(--font-sans)',fontSize:13,color:'#ff9a9a',animation:'fadeIn 0.3s'}}>
         <span style={{fontSize:16}}>⚠</span>
         <span style={{flex:1}}>{lsError}</span>
         <button onClick={()=>setLsError(null)} style={{border:'none',background:'transparent',color:'#ff6b6b',cursor:'pointer',fontSize:16,padding:'0 4px'}}>×</button>
@@ -4077,7 +4095,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.6</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.1.9.7</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -4112,7 +4130,7 @@ function TaskFlow({ session, onSignOut }){
                   color:act?activeColor:inactiveColor,
                   opacity:act?1:0.75,
                   transition:'all 0.15s',
-                  fontSize:22,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:act?600:400,
+                  fontSize:22,fontFamily:'var(--font-sans)',fontWeight:act?600:400,
                   borderLeft:act?'3px solid '+(useColor?(sc?.color||'var(--c-accent)'):'var(--c-accent)'):'3px solid transparent',
                 }}
                 onMouseEnter={e=>{if(!act)e.currentTarget.style.opacity='1';}}
@@ -4182,7 +4200,7 @@ function TaskFlow({ session, onSignOut }){
                     onBlur={()=>{if(renameProjectName.trim()){mm.renameProject(p.id,renameProjectName.trim());}setRenamingProjectId(null);setRenameProjectName('');}}
                     autoFocus
                     style={{flex:1,border:'1px solid var(--c-accent)',borderRadius:4,padding:'3px 8px',fontSize:15,
-                      background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:600,outline:'none'}}/>
+                      background:'var(--c-bg)',color:'var(--c-text)',fontFamily:'var(--font-sans)',fontWeight:600,outline:'none'}}/>
                 </div>
               ):(
                 <div key={p.id} style={{display:'flex',alignItems:'center',width:'100%',
@@ -4195,7 +4213,7 @@ function TaskFlow({ session, onSignOut }){
                     background:'transparent',
                     padding:'10px 16px',cursor:'pointer',
                     color:isActive?'var(--c-text)':'var(--c-text-secondary-2)',opacity:isActive?1:0.85,
-                    transition:'all 0.15s',fontSize:15,fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:isActive?600:400,
+                    transition:'all 0.15s',fontSize:15,fontFamily:'var(--font-sans)',fontWeight:isActive?600:400,
                   }}
                   onMouseEnter={e=>{if(!isActive)e.currentTarget.style.opacity='1';}}
                   onMouseLeave={e=>{if(!isActive)e.currentTarget.style.opacity='0.85';}}>
@@ -4217,13 +4235,13 @@ function TaskFlow({ session, onSignOut }){
                 <input value={newProjectName} onChange={e=>setNewProjectName(e.target.value)}
                   onKeyDown={e=>{if(e.key==='Enter'&&newProjectName.trim()){mm.addProject(newProjectName.trim());setAddingProject(false);setNewProjectName('');}if(e.key==='Escape'){setAddingProject(false);setNewProjectName('');}}}
                   placeholder="Project name..." autoFocus
-                  style={{flex:1,border:'1px solid var(--c-border)',borderRadius:4,padding:'5px 8px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+                  style={{flex:1,border:'1px solid var(--c-border)',borderRadius:4,padding:'5px 8px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:'var(--font-sans)',outline:'none'}}/>
               </div>
             ):(
               <button onClick={()=>setAddingProject(true)}
                 style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:'none',
                   background:'transparent',padding:'8px 16px',cursor:'pointer',
-                  color:'var(--c-text-muted-7)',fontSize:13,fontFamily:"'IBM Plex Sans',sans-serif",
+                  color:'var(--c-text-muted-7)',fontSize:13,fontFamily:'var(--font-sans)',
                   transition:'color 0.15s'}}
                 onMouseEnter={e=>e.currentTarget.style.color='var(--c-accent)'}
                 onMouseLeave={e=>e.currentTarget.style.color='var(--c-text-muted-7)'}>
@@ -4448,6 +4466,11 @@ function TaskFlow({ session, onSignOut }){
           <button onClick={toggleTheme} title={theme==='dark'?'Switch to sepia theme':(theme==='sepia'?'Switch to light theme':'Switch to dark theme')}
             style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:13,padding:'2px 6px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
             onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>{theme==='dark'?'※':(theme==='sepia'?'☀':'☾')}</button>
+          {/* Font cycle. Button shows "A" rendered in the active font so it
+              previews the typeface; click cycles sans → serif → cursive.    */}
+          <button onClick={toggleFont} title={font==='sans'?'Switch to serif font':(font==='serif'?'Switch to cursive font':'Switch to sans font')}
+            style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:15,lineHeight:1,padding:'2px 6px',fontFamily:'var(--font-sans)',fontWeight:font==='cursive'?700:500,transition:'color 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>A</button>
           {onSignOut&&<button onClick={onSignOut} title="Sign out"
             style={{border:'none',background:'transparent',color:'var(--c-border-strong)',cursor:'pointer',fontSize:13,padding:'2px 4px',fontFamily:"'JetBrains Mono',monospace",transition:'color 0.15s'}}
             onMouseEnter={e=>e.currentTarget.style.color='var(--c-text-muted-9)'} onMouseLeave={e=>e.currentTarget.style.color='var(--c-border-strong)'}>↪</button>}
@@ -4485,7 +4508,7 @@ function TaskFlow({ session, onSignOut }){
                   setRestoringKey(null);
                 }}>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:12,color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",fontWeight:500}}>{dateStr} <span style={{color:'var(--c-text-muted)',fontWeight:400}}>{timeStr}</span></div>
+                  <div style={{fontSize:12,color:'var(--c-text)',fontFamily:'var(--font-sans)',fontWeight:500}}>{dateStr} <span style={{color:'var(--c-text-muted)',fontWeight:400}}>{timeStr}</span></div>
                   <div style={{fontSize:10,color:'var(--c-text-faint-cool)',fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>{b.taskCount||0} tasks · {b.projectCount||0} projects</div>
                 </div>
                 {isRestoring&&<span style={{fontSize:10,color:'#f0c040',fontFamily:"'JetBrains Mono',monospace"}}>Restoring...</span>}
@@ -4543,7 +4566,7 @@ function TaskFlow({ session, onSignOut }){
           {/* Search */}
           <div style={{position:'relative'}}>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
-              style={{border:'1px solid var(--c-border)',borderRadius:6,padding:'8px 12px 8px 32px',fontSize:14,fontFamily:"'IBM Plex Sans',sans-serif",outline:'none',width:210,background:'var(--c-bg)',color:'var(--c-text)',transition:'border-color 0.15s'}}
+              style={{border:'1px solid var(--c-border)',borderRadius:6,padding:'8px 12px 8px 32px',fontSize:14,fontFamily:'var(--font-sans)',outline:'none',width:210,background:'var(--c-bg)',color:'var(--c-text)',transition:'border-color 0.15s'}}
               onFocus={e=>e.target.style.borderColor='var(--c-accent)'} onBlur={e=>e.target.style.borderColor='var(--c-border)'}/>
             <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:14,color:'var(--c-border-strong)'}}>⌕</span>
           </div>
@@ -4566,7 +4589,7 @@ function TaskFlow({ session, onSignOut }){
                   <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
                     onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){const parentTask=selTask&&tasks.some(t=>t.parentId===selTask.id)?selTask:null;addTask(input,null,null,null,parentTask?parentTask.id:null);setInput('');}}}
                     placeholder={selTask&&tasks.some(t=>t.parentId===selTask.id)?"Add subtask to "+selTask.title+"...":"Add a task... (#W for Work, #H for Home, etc.)"}
-                    style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:"'IBM Plex Sans',sans-serif",color:'var(--c-text)',background:'transparent',padding:'4px 0'}}/>
+                    style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:'var(--font-sans)',color:'var(--c-text)',background:'transparent',padding:'4px 0'}}/>
                   {selTask&&selTask.status&&selTask.status!==''&&selTask.status!=='u'&&(
                     <button onClick={()=>{updateTask({...selTask,activeVisible:false});setSelId(null);}}
                       style={{border:'1px solid var(--c-surface-cool-2)',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
@@ -4645,7 +4668,7 @@ function TaskFlow({ session, onSignOut }){
 
               {/* Notes input */}
               <input value={task.notes||''} onChange={e=>updateTask({...task,notes:e.target.value})} placeholder="Add notes..."
-                style={{flex:1,border:'1px solid var(--c-border)',borderRadius:5,padding:'4px 8px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:"'IBM Plex Sans',sans-serif",outline:'none'}}/>
+                style={{flex:1,border:'1px solid var(--c-border)',borderRadius:5,padding:'4px 8px',fontSize:12,background:'var(--c-bg)',color:'var(--c-text)',fontFamily:'var(--font-sans)',outline:'none'}}/>
 
               {/* Close button */}
               <button onClick={()=>setSelId(null)}
@@ -4717,7 +4740,7 @@ function AuthGate() {
 
   if (loading) {
     return React.createElement('div', {
-      style: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--c-bg)', color: 'var(--c-text-cool-2)', fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }
+      style: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--c-bg)', color: 'var(--c-text-cool-2)', fontFamily: 'var(--font-sans)', fontSize: 16 }
     }, 'Loading...');
   }
 
@@ -4726,12 +4749,12 @@ function AuthGate() {
 
   // Not signed in — show sign-in overlay
   if (!session) {
-    return React.createElement('div', { style: { height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--c-bg)', fontFamily: "'IBM Plex Sans', sans-serif", gap: 24 } },
+    return React.createElement('div', { style: { height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--c-bg)', fontFamily: 'var(--font-sans)', gap: 24 } },
       React.createElement('div', { style: { fontSize: 32, fontWeight: 700, color: 'var(--c-text)', letterSpacing: '-0.5px' } }, 'TaskFlow'),
       React.createElement('div', { style: { fontSize: 14, color: 'var(--c-text-cool-2)', marginBottom: 8 } }, 'Sign in to sync your tasks across devices'),
       React.createElement('button', {
         onClick: handleGoogleSignIn,
-        style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 28px', background: 'var(--c-surface-3)', border: '1px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: "'IBM Plex Sans', sans-serif", transition: 'border-color 0.15s' },
+        style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 28px', background: 'var(--c-surface-3)', border: '1px solid var(--c-border)', borderRadius: 10, color: 'var(--c-text)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'border-color 0.15s' },
         onMouseEnter: e => e.currentTarget.style.borderColor = 'var(--c-accent)',
         onMouseLeave: e => e.currentTarget.style.borderColor = 'var(--c-border)'
       },
@@ -4745,7 +4768,7 @@ function AuthGate() {
       ),
       authError && React.createElement('div', { style: { color: '#ff6b6b', fontSize: 13, marginTop: 4 } }, authError),
       React.createElement('div', {
-        style: { fontSize: 12, color: 'var(--c-text-dim)', marginTop: 16, maxWidth: 360, textAlign: 'center', lineHeight: 1.5, fontFamily: "'IBM Plex Sans', sans-serif" }
+        style: { fontSize: 12, color: 'var(--c-text-dim)', marginTop: 16, maxWidth: 360, textAlign: 'center', lineHeight: 1.5, fontFamily: 'var(--font-sans)' }
       }, 'No local-only mode — your data lives in the cloud. To back up or move data without signing in, use Import/Export from the sidebar after signing in.')
     );
   }
