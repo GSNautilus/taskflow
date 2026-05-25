@@ -2297,7 +2297,9 @@ function useMindmap(sbSession) {
 
   // Apply auto-layout to a node and its visible children.
   // Computes optimal subtree layout anchored at the node's current position.
-  const applyAutoLayout = useCallback((targetId) => {
+  // tasks is accepted as a parameter because useMindmap doesn't otherwise see
+  // it, and widthOf's natural-width formula depends on linkedStatus lookup.
+  const applyAutoLayout = useCallback((targetId, tasks = []) => {
     const nid = targetId || rootId;
     if (!nid) return;
     // Get all descendant IDs that are currently visible (not hidden by collapse)
@@ -4386,7 +4388,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.6</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.7</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -4607,7 +4609,7 @@ function TaskFlow({ session, onSignOut }){
               const selNode=mm.selectedId?mm.nodes.find(n=>n.id===mm.selectedId):null;
               const hasChildren=selNode&&selNode.children&&selNode.children.length>0;
               return(
-                <button onClick={()=>{if(selNode&&hasChildren)mm.applyAutoLayout(mm.selectedId);else if(!selNode&&mm.rootId)mm.applyAutoLayout(mm.rootId);}}
+                <button onClick={()=>{if(selNode&&hasChildren)mm.applyAutoLayout(mm.selectedId,tasks);else if(!selNode&&mm.rootId)mm.applyAutoLayout(mm.rootId,tasks);}}
                   disabled={!hasChildren&&!!mm.selectedId}
                   title={selNode?'Auto-arrange '+selNode.title+' and its children':'Select a node with children to auto-layout'}
                   style={{padding:'5px 0',
