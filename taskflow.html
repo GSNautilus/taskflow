@@ -1729,7 +1729,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             boxShadow:isSelected?'0 0 12px var(--c-accent-30)':'none',
             opacity:isChecked?0.55:1,
             transition:'border-color 0.2s, box-shadow 0.2s',fontFamily:'var(--font-sans)',
-            fontSize:isRoot?15:13,fontWeight:isRoot?600:500,color:isChecked?'var(--c-text-dim)':'var(--c-text)',
+            fontSize:isRoot?22:19,fontWeight:isRoot?600:500,color:isChecked?'var(--c-text-dim)':'var(--c-text)',
             overflow:'hidden',userSelect:'none',display:'flex',flexDirection:'column'
           }}>
             {/* Color accent bar */}
@@ -2100,7 +2100,14 @@ function useMindmap(sbSession) {
   }, [nodes, rootId, selectedId, findDescendants, persistNodes]);
 
   const renameNode = useCallback((id, t) => persistNodes(nodes.map(n => n.id === id ? { ...n, title: t } : n)), [nodes, persistNodes]);
-  const setNodeColor = useCallback((id, c) => persistNodes(nodes.map(n => n.id === id ? { ...n, color: c } : n)), [nodes, persistNodes]);
+  // Recoloring cascades to all descendants — mirrors addChild's existing
+  // behavior of inheriting the parent's color on creation, so the tree stays
+  // visually unified. To recolor a single subtree differently, color its root
+  // and the cascade reaches its descendants too.
+  const setNodeColor = useCallback((id, c) => {
+    const ids = new Set([id, ...findDescendants(id)]);
+    persistNodes(nodes.map(n => ids.has(n.id) ? { ...n, color: c } : n));
+  }, [nodes, findDescendants, persistNodes]);
   const toggleCollapse = useCallback((id, positionedNodes) => {
     const nd = nodes.find(n => n.id === id);
     if (!nd) return;
@@ -4226,7 +4233,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.0</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.1</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
