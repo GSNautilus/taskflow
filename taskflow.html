@@ -1520,17 +1520,23 @@ function buildTreeStructure(nodes, rootId, preserveOrder) {
   return nodeMap.get(rootId);
 }
 
-function rtLayout(treeNode, nodeWidth, nodeHeight) {
-  // Build layout node with thread/contour fields
+/* Width-aware Reingold–Tilford (Buchheim).
+   Prelims are in PIXELS (left edges, not unit positions). Each layout node
+   carries its actual width via widthOf(srcNode). Contour separations use the
+   left node's width + gap, so wider nodes get more room from their right
+   neighbor without dragging the rest of the tree out. Centering a parent
+   over its children uses the children's center midpoint minus half the
+   parent's own width. */
+function rtLayout(treeNode, widthOf, nodeHeight, gap) {
   function makeLayoutNode(src, parent) {
+    const w = widthOf(src);
     const ln = {
       id: src.id, data: src, parent,
-      x: 0, width: nodeWidth, height: nodeHeight,
+      x: 0, width: w, height: nodeHeight,
       children: [],
-      // Reingold-Tilford fields
       prelim: 0, modifier: 0,
-      thread: null,   // thread pointer for contour traversal
-      ancestor: null,  // for the "ancestor" defaulting in apportion
+      thread: null,
+      ancestor: null,
       change: 0, shift: 0, number: 0,
     };
     ln.ancestor = ln;
@@ -1545,13 +1551,10 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
   }
 
   const root = makeLayoutNode(treeNode, null);
-  const minSep = 1.0; // minimum separation between nodes (in node-width units)
 
-  // === Contour helpers ===
   function nextLeft(v)  { return v.children.length ? v.children[0] : v.thread; }
   function nextRight(v) { return v.children.length ? v.children[v.children.length - 1] : v.thread; }
 
-  // Move subtree rooted at node right by `shift` amount
   function moveSubtree(wm, wp, shift) {
     const subtrees = wp.number - wm.number;
     if (subtrees > 0) {
@@ -1564,7 +1567,6 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
   }
 
   function ancestor(vim, v, defaultAncestor) {
-    // If vim's ancestor is a sibling of v, use it; otherwise use the default
     if (vim.ancestor && vim.ancestor.parent === v.parent) return vim.ancestor;
     return defaultAncestor;
   }
@@ -1573,8 +1575,8 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
     const w = v.parent ? v.parent.children[v.number - 1] : null;
     if (!w) return defaultAncestor;
 
-    let vip = v,    vim = w;        // inner right, inner left
-    let vop = v,    vom = vip.parent.children[0]; // outer right, outer left
+    let vip = v,    vim = w;
+    let vop = v,    vom = vip.parent.children[0];
     let sip = vip.modifier, sim = vim.modifier;
     let sop = vop.modifier, som = vom.modifier;
 
@@ -1585,7 +1587,9 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
       vop = nextRight(vop);
       vop.ancestor = v;
 
-      const shift = (vim.prelim + sim) - (vip.prelim + sip) + minSep;
+      // We want vip's left edge to be at least vim.width + gap to the right
+      // of vim's left edge (i.e. vim's right edge + gap separation).
+      const shift = (vim.prelim + vim.width + sim) - (vip.prelim + sip) + gap;
       if (shift > 0) {
         moveSubtree(ancestor(vim, v, defaultAncestor), v, shift);
         sip += shift;
@@ -1596,7 +1600,6 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
       som += vom.modifier;
       sop += vop.modifier;
     }
-    // Set threads for next contour walk
     if (nextRight(vim) && !nextRight(vop)) {
       vop.thread = nextRight(vim);
       vop.modifier += sim - sop;
@@ -1610,39 +1613,43 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
 
   function firstWalk(v) {
     if (v.children.length === 0) {
-      // Leaf: place relative to left sibling
-      const w = v.parent ? v.parent.children[v.number - 1] : null;
-      v.prelim = w ? w.prelim + minSep : 0;
+      const ws = v.parent ? v.parent.children[v.number - 1] : null;
+      v.prelim = ws ? ws.prelim + ws.width + gap : 0;
     } else {
       let defaultAncestor = v.children[0];
       v.children.forEach(ch => {
         firstWalk(ch);
         defaultAncestor = apportion(ch, defaultAncestor);
       });
-      // Execute shifts accumulated during apportion
       let shift = 0, change = 0;
       for (let i = v.children.length - 1; i >= 0; i--) {
-        const w = v.children[i];
-        w.prelim += shift;
-        w.modifier += shift;
-        change += w.change;
-        shift += w.shift + change;
+        const ch = v.children[i];
+        ch.prelim += shift;
+        ch.modifier += shift;
+        change += ch.change;
+        shift += ch.shift + change;
       }
-      // Center parent over children
-      const midpoint = (v.children[0].prelim + v.children[v.children.length - 1].prelim) / 2;
-      const w = v.parent ? v.parent.children[v.number - 1] : null;
-      if (w) {
-        v.prelim = w.prelim + minSep;
-        v.modifier = v.prelim - midpoint;
+      // Center this node over its children. prelim = left edge, so the
+      // parent's center is parent.prelim + parent.width / 2; we want that
+      // to equal the midpoint between leftmost child's center and rightmost
+      // child's center.
+      const first = v.children[0], last = v.children[v.children.length - 1];
+      const childrenMid = ((first.prelim + first.width / 2) + (last.prelim + last.width / 2)) / 2;
+      const desiredLeft = childrenMid - v.width / 2;
+
+      const ws = v.parent ? v.parent.children[v.number - 1] : null;
+      if (ws) {
+        v.prelim = ws.prelim + ws.width + gap;
+        v.modifier = v.prelim - desiredLeft;
       } else {
-        v.prelim = midpoint;
+        v.prelim = desiredLeft;
       }
     }
   }
 
   function secondWalk(v, m, depth, results) {
     v.x = v.prelim + m;
-    results.push({ id: v.id, x: v.x, depth });
+    results.push({ id: v.id, x: v.x, depth, width: v.width });
     v.children.forEach(ch => secondWalk(ch, m + v.modifier, depth + 1, results));
   }
 
@@ -1653,20 +1660,18 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
 }
 
 function computeTreeLayout(nodes, rootId, options = {}) {
-  const { horizontalSpacing = 120, verticalSpacing = 80, nodeWidth = 200, nodeHeight = 56, preserveOrder = false } = options;
+  const { verticalSpacing = 80, nodeHeight = 56, gap = 30, widthOf, preserveOrder = false } = options;
   const treeRoot = buildTreeStructure(nodes, rootId, preserveOrder);
   if (!treeRoot) return [];
-  const results = rtLayout(treeRoot, nodeWidth, nodeHeight);
-  // Scale factor: ensure nodes are separated by at least nodeWidth + gap
-  const gap = 30; // minimum pixel gap between adjacent nodes
-  const scale = nodeWidth + gap;
+  const widthFn = widthOf || (() => 200);
+  const results = rtLayout(treeRoot, widthFn, nodeHeight, gap);
   const minX = Math.min(...results.map(r => r.x));
   return results.map(r => ({
     id: r.id,
-    x: Math.round((r.x - minX) * scale),
+    x: Math.round(r.x - minX),
     y: Math.round(r.depth * verticalSpacing),
-    width: nodeWidth,
-    height: nodeHeight
+    width: r.width,
+    height: nodeHeight,
   }));
 }
 
@@ -2305,13 +2310,18 @@ function useMindmap(sbSession) {
         nd.children.forEach(ch => { subtreeIds.add(ch); stack.push(ch); });
       }
     }
-    // Build a sub-node list for just this subtree.
-    // Layout uses a fixed 200 nodeWidth (compact spacing). Wide auto-fit
-    // nodes may visually extend past their layout slot — that's an
-    // acceptable trade vs. spreading the entire tree out by the widest
-    // member, which is what the previous attempt did.
+    // Build a sub-node list for just this subtree. widthOf returns the
+    // actual rendered width per node so the layout's contour-separation
+    // step gives each node exactly the room it needs — no global spreading,
+    // no overlap.
     const subtreeNodes = nodes.filter(n => subtreeIds.has(n.id));
-    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56, preserveOrder: true });
+    const treePositions = computeTreeLayout(subtreeNodes, nid, {
+      verticalSpacing: 100,
+      nodeHeight: 56,
+      gap: 30,
+      widthOf: (src) => computeNodeNaturalWidth(src, nodes, tasks, rootId),
+      preserveOrder: true,
+    });
     if (!treePositions.length) return;
     // Anchor: offset the computed layout so the target node stays at its current position
     const targetNode = nodes.find(n => n.id === nid);
@@ -2507,17 +2517,33 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
   const canvasRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
   const [notesNodeId, setNotesNodeId] = useState(null);
+  // Webfont-load gate: layout uses canvas measureText which depends on the
+  // actual rendered font. On first paint webfonts may not be loaded yet,
+  // giving narrow measurements. document.fonts.ready resolves once they are
+  // — bumping fontReady triggers exactly one re-layout. We don't tie it to
+  // every font swap (data-font cycle) because positions would drift on each
+  // change; the bigger initial-load issue is the one worth fixing.
+  const [fontReady, setFontReady] = useState(false);
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => setFontReady(true));
+    }
+  }, []);
   // Drag state
   const dragStateRef = useRef({ isDragging: false, nodeId: null, startX: 0, startY: 0, nodeX: 0, nodeY: 0 });
   const resizeStateRef = useRef({ isResizing: false, nodeId: null, startX: 0, startY: 0, nodeW: 0, nodeH: 0 });
 
   const { positionedNodes, edges } = useMemo(() => {
     if (!nodes || !nodes.length || !rootId) return { positionedNodes: [], edges: [] };
-    // Fixed 200 nodeWidth — same layout spacing as before auto-fit. Wide
-    // auto-fit nodes overflow their slot; tree stays compact, no position
-    // shifts when canvas measureText returns slightly different values on
-    // different renders (e.g. before/after webfont load).
-    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56 });
+    // Width-aware layout: each node carries its own auto-fit width through
+    // the contour-separation step, so wide siblings push only their right
+    // neighbors and the rest of the tree stays compact.
+    const p = computeTreeLayout(nodes, rootId, {
+      verticalSpacing: 100,
+      nodeHeight: 56,
+      gap: 30,
+      widthOf: (src) => computeNodeNaturalWidth(src, nodes, tasks, rootId),
+    });
     // Override positions with custom x/y if present
     const pWithCustom = p.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
@@ -2526,19 +2552,16 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       }
       return pos;
     });
-    // Resolve width/height per node. customWidth/customHeight applied
-    // independently — customHeight alone (e.g. set by notes toggle) keeps
-    // auto-fit width working. computeNodeNaturalWidth matches the layout's
-    // spacing assumption when customWidth is null.
+    // Width already comes from the layout via widthOf. Only customHeight
+    // needs override here (notes-toggle sets it to grow the panel).
     const pWithCustomSize = pWithCustom.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
       if (!node) return pos;
-      const width = computeNodeNaturalWidth(node, nodes, tasks, rootId);
       const height = (node.customHeight !== null && node.customHeight !== undefined) ? node.customHeight : pos.height;
-      return { ...pos, width, height };
+      return { ...pos, height };
     });
     return { positionedNodes: pWithCustomSize, edges: computeEdges(pWithCustomSize, nodes) };
-  }, [nodes, rootId, tasks]);
+  }, [nodes, rootId, tasks, fontReady]);
 
   const fitToView = useCallback(() => {
     if (!positionedNodes.length || !canvasRef.current) return;
@@ -4363,7 +4386,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.5</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.6</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
