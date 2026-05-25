@@ -1688,20 +1688,27 @@ function measureMindmapTitleWidth(title, isRoot) {
   return ctx.measureText(title).width;
 }
 
-/* Natural width of a node — respects customWidth if set, otherwise computes
-   auto-fit width matching the renderer's formula. Used by both the layout
-   spacing (to keep siblings from overlapping) and the rendered width.    */
+/* Natural width of a node. customWidth wins ONLY when node.userResized is
+   true — set by the resize handle. Pre-existing customWidth values from the
+   old notes-toggle code (which used to write customWidth=200 on every open/
+   close) are ignored, so auto-fit applies to legacy data.
+
+   Padding inventory for the title flex row:
+     padding-left(12) + checkbox(18) + gap(8) + title(flex) + gap(8) +
+     [statusBadge + gap if linked] + notes-btn(12) + padding-right(8 or 32)
+   The accent bar is position:absolute so it doesn't take flex space.
+   30px slack on top of measured title width gives webfont-load races and
+   measureText's kerning approximations enough room to never trip ellipsis. */
 function computeNodeNaturalWidth(node, nodes, tasks, rootId) {
-  if (node.customWidth !== null && node.customWidth !== undefined) return node.customWidth;
+  if (node.userResized && node.customWidth !== null && node.customWidth !== undefined) return node.customWidth;
   const isRoot = node.id === rootId;
   const titleW = measureMindmapTitleWidth(node.title || '', isRoot);
   const hasChildren = nodes.some(n => n.parentId === node.id);
   const linkedTask = node.linkedTaskId ? tasks.find(t => t.id === node.linkedTaskId) : null;
   const hasLinkedStatus = linkedTask && linkedTask.status;
-  // padding-left(12) + accent-bar(4) + checkbox(18) + gap(8) + notes-btn(12) + gap(8) + right-pad(8 or 32 if hasChildren)
-  const padW = 12 + 4 + 18 + 8 + 12 + 8 + (hasChildren ? 32 : 8);
-  const statusW = hasLinkedStatus ? 36 : 0;
-  return Math.max(200, Math.min(520, Math.ceil(titleW + padW + statusW + 12)));
+  const padW = 12 + 18 + 8 + 8 + 12 + (hasChildren ? 32 : 8);
+  const statusW = hasLinkedStatus ? 36 + 8 : 0;
+  return Math.max(200, Math.min(520, Math.ceil(titleW + padW + statusW + 30)));
 }
 
 function getVisualNodeHeight(node, posHeight) {
@@ -2298,14 +2305,13 @@ function useMindmap(sbSession) {
         nd.children.forEach(ch => { subtreeIds.add(ch); stack.push(ch); });
       }
     }
-    // Build a sub-node list for just this subtree
+    // Build a sub-node list for just this subtree.
+    // Layout uses a fixed 200 nodeWidth (compact spacing). Wide auto-fit
+    // nodes may visually extend past their layout slot — that's an
+    // acceptable trade vs. spreading the entire tree out by the widest
+    // member, which is what the previous attempt did.
     const subtreeNodes = nodes.filter(n => subtreeIds.has(n.id));
-    // Use the widest natural width in the subtree as the layout's nodeWidth so
-    // siblings don't overlap when titles are long. computeTreeLayout uses a
-    // single uniform width to space siblings — passing the max guarantees no
-    // overlap (at the cost of some extra space around narrow nodes).
-    const maxSubW = Math.max(200, ...subtreeNodes.map(n => computeNodeNaturalWidth(n, nodes, tasks, rootId)));
-    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: maxSubW, nodeHeight: 56, preserveOrder: true });
+    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56, preserveOrder: true });
     if (!treePositions.length) return;
     // Anchor: offset the computed layout so the target node stays at its current position
     const targetNode = nodes.find(n => n.id === nid);
@@ -2345,7 +2351,11 @@ function useMindmap(sbSession) {
   }, [nodes, persistNodes]);
 
   const setNodeSize = useCallback((id, w, h) => {
-    persistNodes(nodes.map(n => n.id === id ? { ...n, customWidth: w, customHeight: h } : n));
+    // userResized is the signal that customWidth was set deliberately via the
+    // resize handle. computeNodeNaturalWidth checks it before honoring
+    // customWidth so legacy data (notes-toggle used to set customWidth=200)
+    // doesn't pin nodes at 200 forever.
+    persistNodes(nodes.map(n => n.id === id ? { ...n, customWidth: w, customHeight: h, userResized: true } : n));
   }, [nodes, persistNodes]);
 
   // Clipboard for copy/paste
@@ -2503,10 +2513,11 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
 
   const { positionedNodes, edges } = useMemo(() => {
     if (!nodes || !nodes.length || !rootId) return { positionedNodes: [], edges: [] };
-    // Use the widest natural width in the whole tree as the layout's nodeWidth
-    // so siblings don't overlap when one of them has a long title.
-    const maxW = Math.max(200, ...nodes.map(n => computeNodeNaturalWidth(n, nodes, tasks, rootId)));
-    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: maxW, nodeHeight: 56 });
+    // Fixed 200 nodeWidth — same layout spacing as before auto-fit. Wide
+    // auto-fit nodes overflow their slot; tree stays compact, no position
+    // shifts when canvas measureText returns slightly different values on
+    // different renders (e.g. before/after webfont load).
+    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56 });
     // Override positions with custom x/y if present
     const pWithCustom = p.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
@@ -4352,7 +4363,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.4</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.5</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
