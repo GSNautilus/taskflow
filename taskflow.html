@@ -1653,7 +1653,7 @@ function rtLayout(treeNode, nodeWidth, nodeHeight) {
 }
 
 function computeTreeLayout(nodes, rootId, options = {}) {
-  const { horizontalSpacing = 120, verticalSpacing = 80, nodeWidth = 200, nodeHeight = 54, preserveOrder = false } = options;
+  const { horizontalSpacing = 120, verticalSpacing = 80, nodeWidth = 200, nodeHeight = 56, preserveOrder = false } = options;
   const treeRoot = buildTreeStructure(nodes, rootId, preserveOrder);
   if (!treeRoot) return [];
   const results = rtLayout(treeRoot, nodeWidth, nodeHeight);
@@ -1670,9 +1670,27 @@ function computeTreeLayout(nodes, rootId, options = {}) {
   }));
 }
 
+/* Measure mindmap title text in pixels at the actual rendered font. Used by
+   the auto-fit width calculation so nodes hug their title content instead of
+   sitting at a fixed 200px. Canvas measureText is O(1) — the canvas element
+   is reused across calls. We read --font-sans from the root so the cycle
+   between sans/serif/cursive measures the right font; on first paint
+   webfonts may not be loaded yet, which is why the caller adds a buffer.   */
+const _mmTextCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+function measureMindmapTitleWidth(title, isRoot) {
+  if (!_mmTextCanvas || !title) return 0;
+  const ctx = _mmTextCanvas.getContext('2d');
+  let sansFont = "'IBM Plex Sans', sans-serif";
+  try { const v = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim(); if (v) sansFont = v; } catch(_) {}
+  const fontPx = isRoot ? 33 : 28;
+  const fontWeight = isRoot ? 600 : 500;
+  ctx.font = fontWeight + ' ' + fontPx + 'px ' + sansFont;
+  return ctx.measureText(title).width;
+}
+
 function getVisualNodeHeight(node, posHeight) {
-  const titleRowH = 38;
-  const nh = posHeight || 54;
+  const titleRowH = 56;
+  const nh = posHeight || 56;
   const hasNotes = node && node.notes && node.notes.trim();
   const notesExpanded = node && node.notesExpanded;
   const notesAreaH = notesExpanded && hasNotes ? Math.max(0, nh - titleRowH) : 0;
@@ -1716,12 +1734,22 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesVal, setNotesVal] = useState(node.notes || '');
   const notesInputRef = useRef(null);
+  // Set to true on mouseDown over the notes toggle button. finishNotesEdit
+  // checks this flag and skips its auto-close path so the button click isn't
+  // racing two onToggleNodeNotes calls (one from textarea blur, one from
+  // click), which used to flip the panel closed-then-back-open.
+  const notesBtnDownRef = useRef(false);
   useEffect(() => { setNotesVal(node.notes || ''); }, [node.notes]);
   useEffect(() => { if (editingNotes && notesInputRef.current) notesInputRef.current.focus(); }, [editingNotes]);
-  const finishNotesEdit = () => { setEditingNotes(false); onSetNotes(notesVal); if(!notesVal.trim()&&node.notesExpanded){onToggleNodeNotes(true);} };
+  const finishNotesEdit = () => {
+    setEditingNotes(false);
+    onSetNotes(notesVal);
+    if (notesBtnDownRef.current) return; // Notes button will handle the close itself
+    if(!notesVal.trim()&&node.notesExpanded){onToggleNodeNotes(true);}
+  };
   const hasChildren = node.children && node.children.length > 0;
-  const nw = position.width || 200, nh = position.height || 54;
-  const titleRowH = 38;
+  const nw = position.width || 200, nh = position.height || 56;
+  const titleRowH = 56;
   const hasNotes = node.notes && node.notes.trim();
   const notesExpanded = node.notesExpanded || editingNotes;
   const notesAreaH = notesExpanded ? Math.max(0, nh - titleRowH) : 0;
@@ -1746,7 +1774,7 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
             boxShadow:isSelected?'0 0 12px var(--c-accent-30)':'none',
             opacity:isChecked?0.55:1,
             transition:'border-color 0.2s, box-shadow 0.2s',fontFamily:'var(--font-sans)',
-            fontSize:isRoot?22:19,fontWeight:isRoot?600:500,color:isChecked?'var(--c-text-dim)':'var(--c-text)',
+            fontSize:isRoot?33:28,fontWeight:isRoot?600:500,color:isChecked?'var(--c-text-dim)':'var(--c-text)',
             overflow:'hidden',userSelect:'none',display:'flex',flexDirection:'column'
           }}>
             {/* Color accent bar */}
@@ -1772,7 +1800,27 @@ function MindmapNode({ node, position, isSelected, isRoot, onSelect, onAddChild,
                   {linkedStatus}
                 </span>
               )}
-              <div onClick={e=>{e.stopPropagation();if(!hasNotes&&!notesExpanded){onToggleNodeNotes(false);setEditingNotes(true);}else if(notesExpanded&&!hasNotes){setEditingNotes(false);onToggleNodeNotes(true);}else{onToggleNodeNotes(false);}}}
+              <div
+                onMouseDown={()=>{notesBtnDownRef.current=true;setTimeout(()=>{notesBtnDownRef.current=false;},250);}}
+                onClick={e=>{
+                  e.stopPropagation();
+                  // Decide intent from the persistent flag (node.notesExpanded),
+                  // not the OR-with-editingNotes computed value — otherwise a
+                  // blur-induced state can fool us into the wrong branch.
+                  const wasExpanded = !!node.notesExpanded;
+                  setEditingNotes(false);
+                  if (wasExpanded) {
+                    // Closing. Pass closingEmpty=true only when there's no
+                    // content (shrinks customHeight); otherwise plain toggle
+                    // preserves the user's resized height.
+                    onToggleNodeNotes(!hasNotes);
+                  } else {
+                    // Opening. If there's no content, jump straight into edit
+                    // mode so the user can type.
+                    onToggleNodeNotes(false);
+                    if (!hasNotes) setEditingNotes(true);
+                  }
+                }}
                 style={{cursor:'pointer',flexShrink:0,transition:'all 0.15s',display:'flex',alignItems:'center'}}
                 title={notesExpanded?'Hide notes':(hasNotes?'Show notes':'Add notes')}>
                 {(()=>{const iconColor=(hasNotes||notesExpanded)?nodeColor:'var(--c-text-muted-3)';return(
@@ -1854,7 +1902,7 @@ function MindmapNodeEditor({ node, position, onSave, onCancel }) {
   const [val, setVal] = useState(node.title);
   const ref = useRef(null);
   useEffect(()=>{if(ref.current){ref.current.focus();ref.current.select();}},[]);
-  const nw = position.width || 200, nh = position.height || 54;
+  const nw = position.width || 200, nh = position.height || 56;
   return (
     <foreignObject x={position.x} y={position.y} width={nw} height={nh} style={{overflow:'visible'}}>
       <div style={{width:nw,height:nh,background:'var(--c-surface-3)',border:'2px solid var(--c-accent)',borderRadius:6,
@@ -2058,7 +2106,7 @@ function useMindmap(sbSession) {
     const parentNode = nodes.find(n => n.id === parentId);
     const childColor = parentNode ? (parentNode.color || defaultNodeColor) : defaultNodeColor;
     // Use the same spacing constants as computeTreeLayout
-    const nodeW = 200, nodeH = 54, hStep = 230, vStep = 100; // hStep = nodeW(200) + gap(30)
+    const nodeW = 200, nodeH = 56, hStep = 230, vStep = 100; // hStep = nodeW(200) + gap(30)
     let childX = null, childY = null;
     if (parentNode && parentNode.customX != null) {
       const parentX = parentNode.customX;
@@ -2236,7 +2284,7 @@ function useMindmap(sbSession) {
     }
     // Build a sub-node list for just this subtree
     const subtreeNodes = nodes.filter(n => subtreeIds.has(n.id));
-    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 54, preserveOrder: true });
+    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56, preserveOrder: true });
     if (!treePositions.length) return;
     // Anchor: offset the computed layout so the target node stays at its current position
     const targetNode = nodes.find(n => n.id === nid);
@@ -2434,7 +2482,7 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
 
   const { positionedNodes, edges } = useMemo(() => {
     if (!nodes || !nodes.length || !rootId) return { positionedNodes: [], edges: [] };
-    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 54 });
+    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56 });
     // Override positions with custom x/y if present
     const pWithCustom = p.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
@@ -2443,16 +2491,33 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       }
       return pos;
     });
-    // Override sizes with custom width/height if present
+    // Resolve width/height per node. customWidth/customHeight applied
+    // independently — only customWidth set (e.g. user-resized) keeps the
+    // default height. Auto-fit width is used when customWidth is null so
+    // nodes hug their title content. The 12px buffer guards against webfont
+    // load races where canvas measureText would under-measure.
     const pWithCustomSize = pWithCustom.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
-      if (node && node.customWidth !== null && node.customWidth !== undefined && node.customHeight !== null && node.customHeight !== undefined) {
-        return { ...pos, width: node.customWidth, height: node.customHeight };
+      if (!node) return pos;
+      let width = pos.width;
+      if (node.customWidth !== null && node.customWidth !== undefined) {
+        width = node.customWidth;
+      } else {
+        const isRoot = node.id === rootId;
+        const titleW = measureMindmapTitleWidth(node.title || '', isRoot);
+        const hasChildren = nodes.some(n => n.parentId === node.id);
+        const linkedTask = node.linkedTaskId ? tasks.find(t => t.id === node.linkedTaskId) : null;
+        const hasLinkedStatus = linkedTask && linkedTask.status;
+        // padding-left(12) + accent-bar(4) + checkbox(18) + gap(8) + notes-btn(12) + gap(8) + right-pad (8 or 32 if hasChildren)
+        const padW = 12 + 4 + 18 + 8 + 12 + 8 + (hasChildren ? 32 : 8);
+        const statusW = hasLinkedStatus ? 36 : 0;
+        width = Math.max(200, Math.min(520, Math.ceil(titleW + padW + statusW + 12)));
       }
-      return pos;
+      const height = (node.customHeight !== null && node.customHeight !== undefined) ? node.customHeight : pos.height;
+      return { ...pos, width, height };
     });
     return { positionedNodes: pWithCustomSize, edges: computeEdges(pWithCustomSize, nodes) };
-  }, [nodes, rootId]);
+  }, [nodes, rootId, tasks]);
 
   const fitToView = useCallback(() => {
     if (!positionedNodes.length || !canvasRef.current) return;
@@ -2687,7 +2752,7 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       startX: e.clientX,
       startY: e.clientY,
       nodeW: pos.width || 200,
-      nodeH: pos.height || 54
+      nodeH: pos.height || 56
     };
     setIsPanning(false);
   }, [positionedNodes]);
@@ -2720,14 +2785,16 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
                   }}
                   onAddToTasks={()=>handleAddToTasks(nd.id)}
                   onToggleNodeNotes={(closingEmpty)=>{
+                    // Don't touch customWidth — leaving it null lets the
+                    // auto-fit width keep working as the title changes.
                     if(closingEmpty){
-                      /* Closing notes with no content — shrink back and collapse in one update */
-                      persistNodes(nodes.map(n => n.id === nd.id ? { ...n, notesExpanded: false, customWidth: pos.width||200, customHeight: 54 } : n));
+                      /* Closing notes with no content — collapse height */
+                      persistNodes(nodes.map(n => n.id === nd.id ? { ...n, notesExpanded: false, customHeight: 56 } : n));
                     } else if(!nd.notesExpanded){
-                      /* Opening notes — expand + toggle in one update */
-                      const curH = pos.height||54;
+                      /* Opening notes — expand vertical space */
+                      const curH = pos.height||56;
                       const newH = curH < 180 ? 180 : curH;
-                      persistNodes(nodes.map(n => n.id === nd.id ? { ...n, notesExpanded: true, customWidth: pos.width||200, customHeight: newH } : n));
+                      persistNodes(nodes.map(n => n.id === nd.id ? { ...n, notesExpanded: true, customHeight: newH } : n));
                     } else {
                       /* Closing notes that have content — just toggle */
                       toggleNodeNotesExpanded(nd.id);
@@ -4275,7 +4342,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.2</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.3</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
