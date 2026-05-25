@@ -1688,6 +1688,22 @@ function measureMindmapTitleWidth(title, isRoot) {
   return ctx.measureText(title).width;
 }
 
+/* Natural width of a node — respects customWidth if set, otherwise computes
+   auto-fit width matching the renderer's formula. Used by both the layout
+   spacing (to keep siblings from overlapping) and the rendered width.    */
+function computeNodeNaturalWidth(node, nodes, tasks, rootId) {
+  if (node.customWidth !== null && node.customWidth !== undefined) return node.customWidth;
+  const isRoot = node.id === rootId;
+  const titleW = measureMindmapTitleWidth(node.title || '', isRoot);
+  const hasChildren = nodes.some(n => n.parentId === node.id);
+  const linkedTask = node.linkedTaskId ? tasks.find(t => t.id === node.linkedTaskId) : null;
+  const hasLinkedStatus = linkedTask && linkedTask.status;
+  // padding-left(12) + accent-bar(4) + checkbox(18) + gap(8) + notes-btn(12) + gap(8) + right-pad(8 or 32 if hasChildren)
+  const padW = 12 + 4 + 18 + 8 + 12 + 8 + (hasChildren ? 32 : 8);
+  const statusW = hasLinkedStatus ? 36 : 0;
+  return Math.max(200, Math.min(520, Math.ceil(titleW + padW + statusW + 12)));
+}
+
 function getVisualNodeHeight(node, posHeight) {
   const titleRowH = 56;
   const nh = posHeight || 56;
@@ -2284,7 +2300,12 @@ function useMindmap(sbSession) {
     }
     // Build a sub-node list for just this subtree
     const subtreeNodes = nodes.filter(n => subtreeIds.has(n.id));
-    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56, preserveOrder: true });
+    // Use the widest natural width in the subtree as the layout's nodeWidth so
+    // siblings don't overlap when titles are long. computeTreeLayout uses a
+    // single uniform width to space siblings — passing the max guarantees no
+    // overlap (at the cost of some extra space around narrow nodes).
+    const maxSubW = Math.max(200, ...subtreeNodes.map(n => computeNodeNaturalWidth(n, nodes, tasks, rootId)));
+    const treePositions = computeTreeLayout(subtreeNodes, nid, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: maxSubW, nodeHeight: 56, preserveOrder: true });
     if (!treePositions.length) return;
     // Anchor: offset the computed layout so the target node stays at its current position
     const targetNode = nodes.find(n => n.id === nid);
@@ -2482,7 +2503,10 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
 
   const { positionedNodes, edges } = useMemo(() => {
     if (!nodes || !nodes.length || !rootId) return { positionedNodes: [], edges: [] };
-    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: 200, nodeHeight: 56 });
+    // Use the widest natural width in the whole tree as the layout's nodeWidth
+    // so siblings don't overlap when one of them has a long title.
+    const maxW = Math.max(200, ...nodes.map(n => computeNodeNaturalWidth(n, nodes, tasks, rootId)));
+    const p = computeTreeLayout(nodes, rootId, { horizontalSpacing: 130, verticalSpacing: 100, nodeWidth: maxW, nodeHeight: 56 });
     // Override positions with custom x/y if present
     const pWithCustom = p.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
@@ -2492,27 +2516,13 @@ function MindmapTab({ mm, tasks, onAddTask, onChangeStatus }) {
       return pos;
     });
     // Resolve width/height per node. customWidth/customHeight applied
-    // independently — only customWidth set (e.g. user-resized) keeps the
-    // default height. Auto-fit width is used when customWidth is null so
-    // nodes hug their title content. The 12px buffer guards against webfont
-    // load races where canvas measureText would under-measure.
+    // independently — customHeight alone (e.g. set by notes toggle) keeps
+    // auto-fit width working. computeNodeNaturalWidth matches the layout's
+    // spacing assumption when customWidth is null.
     const pWithCustomSize = pWithCustom.map(pos => {
       const node = nodes.find(n => n.id === pos.id);
       if (!node) return pos;
-      let width = pos.width;
-      if (node.customWidth !== null && node.customWidth !== undefined) {
-        width = node.customWidth;
-      } else {
-        const isRoot = node.id === rootId;
-        const titleW = measureMindmapTitleWidth(node.title || '', isRoot);
-        const hasChildren = nodes.some(n => n.parentId === node.id);
-        const linkedTask = node.linkedTaskId ? tasks.find(t => t.id === node.linkedTaskId) : null;
-        const hasLinkedStatus = linkedTask && linkedTask.status;
-        // padding-left(12) + accent-bar(4) + checkbox(18) + gap(8) + notes-btn(12) + gap(8) + right-pad (8 or 32 if hasChildren)
-        const padW = 12 + 4 + 18 + 8 + 12 + 8 + (hasChildren ? 32 : 8);
-        const statusW = hasLinkedStatus ? 36 : 0;
-        width = Math.max(200, Math.min(520, Math.ceil(titleW + padW + statusW + 12)));
-      }
+      const width = computeNodeNaturalWidth(node, nodes, tasks, rootId);
       const height = (node.customHeight !== null && node.customHeight !== undefined) ? node.customHeight : pos.height;
       return { ...pos, width, height };
     });
@@ -4342,7 +4352,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.3</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.4</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
