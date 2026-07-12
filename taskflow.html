@@ -1287,17 +1287,95 @@ function StatusDropdown({onSelect,onClose}){
 }
 
 /* ── Task Row ── */
-function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragStart,onDragOver,onDrop,onDragEnd,isDragging=false,dropIndicator=null,showOrder,categories,depth=0,hasChildren=false,onToggleCollapse,onAddSubtask}){
+function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragStart,onDragOver,onDrop,onDragEnd,onTouchDragStart,onTouchDragOver,onTouchDrop,onTouchCancel,isDragging=false,dropIndicator=null,showOrder,categories,depth=0,hasChildren=false,onToggleCollapse,onAddSubtask}){
   const[catOpen,setCatOpen]=useState(false);
   const[statusOpen,setStatusOpen]=useState(false);
   const[editing,setEditing]=useState(false);
   const[editVal,setEditVal]=useState(task.title);
   const[duePicker,setDuePicker]=useState(false);
   const inp=useRef(null);
+  const rowRef=useRef(null);
   const s=STATUS_CONFIG[task.status]||STATUS_CONFIG[''];
   const dblClickTimer=useRef(null);
+  // Latest props for the native touch listeners, which are bound once and would
+  // otherwise capture stale closures.
+  const touchProps=useRef({});
+  touchProps.current={editing,taskId:task.id,onTouchDragStart,onTouchDragOver,onTouchDrop,onTouchCancel};
 
   useEffect(()=>{if(editing&&inp.current)inp.current.focus();},[editing]);
+
+  /* ── Touch drag ──
+     HTML5 drag-and-drop doesn't exist on touch, so we synthesize it. A ~320ms
+     long-press (finger held roughly still) enters drag mode; a finger that
+     moves first is left to scroll the list normally. Once in drag mode we
+     preventDefault to stop the page scrolling and track the finger with
+     elementFromPoint, feeding the same dropTarget machinery the mouse uses.
+     Listeners are attached natively (not via React) so touchmove can be
+     non-passive and actually cancel scrolling. Desktop never fires these. */
+  useEffect(()=>{
+    const el=rowRef.current;
+    if(!el)return;
+    const LONG_PRESS=320, MOVE_CANCEL=12;
+    let st=null; // {startX,startY,timer,dragging}
+    const clearTimer=()=>{if(st&&st.timer){clearTimeout(st.timer);st.timer=null;}};
+    const onStart=(e)=>{
+      const p=touchProps.current;
+      if(p.editing||e.touches.length!==1){st=null;return;}
+      const t=e.touches[0];
+      st={startX:t.clientX,startY:t.clientY,dragging:false,timer:null};
+      st.timer=setTimeout(()=>{
+        if(!st)return;
+        st.dragging=true;
+        if(navigator.vibrate){try{navigator.vibrate(12);}catch(_){}}
+        touchProps.current.onTouchDragStart(touchProps.current.taskId);
+      },LONG_PRESS);
+    };
+    const onMove=(e)=>{
+      if(!st)return;
+      const t=e.touches[0];
+      if(!st.dragging){
+        // Moved before the long-press fired → this is a scroll, not a drag.
+        if(Math.abs(t.clientX-st.startX)>MOVE_CANCEL||Math.abs(t.clientY-st.startY)>MOVE_CANCEL){
+          clearTimer();st=null;
+        }
+        return;
+      }
+      e.preventDefault(); // stop the list from scrolling while dragging
+      const under=document.elementFromPoint(t.clientX,t.clientY);
+      const rowEl=under&&under.closest('[data-task-id]');
+      if(rowEl){
+        const overId=rowEl.getAttribute('data-task-id');
+        const rect=rowEl.getBoundingClientRect();
+        const position=(t.clientY<rect.top+rect.height/2)?'before':'after';
+        touchProps.current.onTouchDragOver(overId,position);
+      }
+    };
+    const onEnd=(e)=>{
+      if(!st)return;
+      clearTimer();
+      if(st.dragging){
+        e.preventDefault(); // suppress the emulated click/selection after a drag
+        touchProps.current.onTouchDrop();
+      }
+      st=null;
+    };
+    const onCancel=()=>{
+      if(!st)return;
+      clearTimer();
+      if(st.dragging)touchProps.current.onTouchCancel();
+      st=null;
+    };
+    el.addEventListener('touchstart',onStart,{passive:true});
+    el.addEventListener('touchmove',onMove,{passive:false});
+    el.addEventListener('touchend',onEnd,{passive:false});
+    el.addEventListener('touchcancel',onCancel,{passive:true});
+    return()=>{
+      el.removeEventListener('touchstart',onStart);
+      el.removeEventListener('touchmove',onMove);
+      el.removeEventListener('touchend',onEnd);
+      el.removeEventListener('touchcancel',onCancel);
+    };
+  },[]);
   const donEdit=()=>{setEditing(false);if(editVal.trim()&&editVal!==task.title)onUpdate({...task,title:editVal.trim()});};
 
   const retInfo=useMemo(()=>{
@@ -1319,13 +1397,13 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
   };
 
   return(
-    <div draggable={!editing}
+    <div draggable={!editing} ref={rowRef} data-task-id={task.id}
       onDragStart={e=>onDragStart(e,task.id)} onDragOver={e=>onDragOver(e,task.id)} onDrop={e=>onDrop(e)} onDragEnd={e=>onDragEnd&&onDragEnd(e)}
       onClick={e=>onSelect(task.id,e)} onDoubleClick={()=>onChangeStatus(task.id,task.status==='x'?'':'x')}
       style={{
         display:'flex',alignItems:'center',gap:10,padding:'4px 12px',paddingLeft:12+depth*28,
         background:isSelected?'var(--c-surface-cool)':(task.status?s.rowBg:'var(--c-bg)'),
-        borderRadius:8,cursor:'grab',userSelect:'none',
+        borderRadius:8,cursor:'grab',userSelect:'none',WebkitTouchCallout:'none',
         border:isSelected?'1.5px solid var(--c-accent)':'1.5px solid var(--c-border)',
         transition:'all 0.15s ease',position:'relative',
         opacity:isDragging?0.4:(task.status==='s'?0.45:1),
@@ -3782,6 +3860,13 @@ function TaskFlow({ session, onSignOut }){
   // {id, position} indicating which row the indicator line shows on.
   const[dragSet,setDragSet]=useState(null);
   const[dropTarget,setDropTarget]=useState(null);
+  // Refs mirror the drag state so the drop handlers read the *current* values
+  // rather than a value captured in a stale render closure. HTML5 DnD fires
+  // `drop`/`dragend` as discrete events that can outrun React's commit of the
+  // last `dragover` update, which is why an on-target drop would sometimes
+  // apply a stale (or null) target and appear to "snap back to the start".
+  const dragSetRef=useRef(null);
+  const dropTargetRef=useRef(null);
   const vp = useViewport();
   const[sidebarOpen,setSidebarOpen]=useState(() => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -4198,44 +4283,40 @@ function TaskFlow({ session, onSignOut }){
        dragSet. Only roots get reparented; their existing descendants stay
        attached automatically since they're already linked via parentId.   */
 
-  const handleDragStart=useCallback((e,taskId)=>{
-    // If the dragged task is part of the active selection, carry the whole
-    // selection. Otherwise this is a single-task drag. Subtrees come along
-    // automatically via the shared expandToSubtreeIds helper.
+  // Begin a move: compute the full set of IDs that travel together (selection
+  // ∪ descendants, or a single task's subtree). Shared by mouse + touch.
+  const beginDrag=useCallback((taskId)=>{
     const roots=selIds.has(taskId)?[...selIds]:[taskId];
     const fullSet=expandToSubtreeIds(roots,tasks);
+    dragSetRef.current=fullSet;
+    dropTargetRef.current=null;
     setDragSet(fullSet);
-    e.dataTransfer.effectAllowed='move';
-    // Custom drag image when dragging more than one root, so you see a count.
-    if(roots.length>1){
-      const ghost=document.createElement('div');
-      ghost.textContent=roots.length+' tasks';
-      ghost.style.cssText='position:absolute;top:-1000px;padding:6px 12px;background:var(--c-accent);color:#fff;border-radius:6px;font-family:var(--font-sans);font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
-      document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost,12,12);
-      setTimeout(()=>{try{document.body.removeChild(ghost);}catch(_){}}, 0);
-    }
+    setDropTarget(null);
+    return roots;
   },[selIds,tasks]);
 
-  const handleDragOver=useCallback((e,taskId)=>{
-    e.preventDefault();
-    if(!dragSet||dragSet.has(taskId)){setDropTarget(null);return;}
-    const rect=e.currentTarget.getBoundingClientRect();
-    const position=(e.clientY<rect.top+rect.height/2)?'before':'after';
-    setDropTarget(prev=>(prev&&prev.id===taskId&&prev.position===position)?prev:{id:taskId,position});
-  },[dragSet]);
+  // Point the drop indicator at a slot, keeping ref + state in lockstep.
+  const setDropSlot=useCallback((taskId,position)=>{
+    const ds=dragSetRef.current;
+    if(!ds||ds.has(taskId)){dropTargetRef.current=null;setDropTarget(null);return;}
+    const next={id:taskId,position};
+    dropTargetRef.current=next;
+    setDropTarget(prev=>(prev&&prev.id===taskId&&prev.position===position)?prev:next);
+  },[]);
 
-  const handleDragEnd=useCallback(()=>{
+  const endDrag=useCallback(()=>{
+    dragSetRef.current=null;
+    dropTargetRef.current=null;
     setDragSet(null);
     setDropTarget(null);
   },[]);
 
-  const handleDrop=useCallback(e=>{
-    e.preventDefault();
-    const target=dropTarget;
-    const moveSet=dragSet;
-    setDragSet(null);
-    setDropTarget(null);
+  // Apply the pending move. Reads the refs so it is immune to render timing,
+  // and is called from both the mouse `drop` event and the touch drop.
+  const performDrop=useCallback(()=>{
+    const target=dropTargetRef.current;
+    const moveSet=dragSetRef.current;
+    endDrag();
     if(!target||!moveSet||moveSet.size===0)return;
     setTasks(prev=>{
       const targetTask=prev.find(t=>t.id===target.id);
@@ -4261,7 +4342,48 @@ function TaskFlow({ session, onSignOut }){
         return t;
       });
     });
-  },[dragSet,dropTarget]);
+  },[endDrag]);
+
+  const handleDragStart=useCallback((e,taskId)=>{
+    // If the dragged task is part of the active selection, carry the whole
+    // selection. Otherwise this is a single-task drag. Subtrees come along
+    // automatically via the shared expandToSubtreeIds helper.
+    const roots=beginDrag(taskId);
+    e.dataTransfer.effectAllowed='move';
+    // Custom drag image when dragging more than one root, so you see a count.
+    if(roots.length>1){
+      const ghost=document.createElement('div');
+      ghost.textContent=roots.length+' tasks';
+      ghost.style.cssText='position:absolute;top:-1000px;padding:6px 12px;background:var(--c-accent);color:#fff;border-radius:6px;font-family:var(--font-sans);font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost,12,12);
+      setTimeout(()=>{try{document.body.removeChild(ghost);}catch(_){}}, 0);
+    }
+  },[beginDrag]);
+
+  const handleDragOver=useCallback((e,taskId)=>{
+    e.preventDefault();
+    const rect=e.currentTarget.getBoundingClientRect();
+    const position=(e.clientY<rect.top+rect.height/2)?'before':'after';
+    setDropSlot(taskId,position);
+  },[setDropSlot]);
+
+  const handleDragEnd=useCallback(()=>{endDrag();},[endDrag]);
+
+  const handleDrop=useCallback(e=>{
+    e.preventDefault();
+    performDrop();
+  },[performDrop]);
+
+  // ── Touch drag ── HTML5 DnD never fires on touch, so rows drive the move
+  // through these callbacks instead. TaskRow long-presses to start, tracks the
+  // finger via elementFromPoint, and reuses the exact same dragSet/dropTarget
+  // machinery — so the visual indicator and reorder logic are identical to the
+  // desktop path, and desktop (no touch events) is completely unaffected.
+  const handleTouchDragStart=useCallback((taskId)=>{beginDrag(taskId);},[beginDrag]);
+  const handleTouchDragOver=useCallback((taskId,position)=>{setDropSlot(taskId,position);},[setDropSlot]);
+  const handleTouchDrop=useCallback(()=>{performDrop();},[performDrop]);
+  const handleTouchCancel=useCallback(()=>{endDrag();},[endDrag]);
 
   /* ── Filtering ── */
   const getVis=taskList=>{
@@ -4292,6 +4414,7 @@ function TaskFlow({ session, onSignOut }){
         <TaskRow task={task} idx={idx} isSelected={selIds.has(task.id)} onSelect={handleRowClick}
           onUpdate={updateTask} onChangeStatus={changeStatus}
           onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd}
+          onTouchDragStart={handleTouchDragStart} onTouchDragOver={handleTouchDragOver} onTouchDrop={handleTouchDrop} onTouchCancel={handleTouchCancel}
           isDragging={isDragging} dropIndicator={dropInd}
           showOrder={view==='active'} categories={categories} depth={depth} hasChildren={hasChildren}
           onToggleCollapse={toggleCollapse} onAddSubtask={addSubtask}/>
@@ -4388,7 +4511,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.7</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.8</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -4907,7 +5030,9 @@ function TaskFlow({ session, onSignOut }){
             )}
 
             {/* Task list */}
-            <div style={{flex:1,overflow:'auto',padding:'8px 12px 60px'}}>
+            <div style={{flex:1,overflow:'auto',padding:'8px 12px 60px'}}
+              onDragOver={e=>{if(dragSetRef.current)e.preventDefault();}}
+              onDrop={handleDrop}>
               {filtered.length===0?(
                 <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'60%',color:'var(--c-border-strong)',gap:12}}>
                   <span style={{fontSize:44}}>{view==='active'?'✨':view==='x'?'📦':'📋'}</span>
