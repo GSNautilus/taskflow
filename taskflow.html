@@ -4171,13 +4171,6 @@ function TaskFlow({ session, onSignOut }){
 
   // Hide a single task (and its subtree) from the Active view. Used by the
   // "Hide from active" button in the right panel. Cascading prevents orphans.
-  const hideFromActive=useCallback(taskId=>{
-    setTasks(prev=>{
-      const ids = expandToSubtreeIds([taskId], prev);
-      return prev.map(t=>ids.has(t.id)?{...t,activeVisible:false}:t);
-    });
-  },[]);
-
   // Delete a set of tasks + every descendant. Single source of truth for
   // delete so the keyboard Del key and the event-panel button stay in sync.
   const deleteTasks=useCallback(taskIds=>{
@@ -4196,6 +4189,22 @@ function TaskFlow({ session, onSignOut }){
     setSelId(null);
     setSelIds(new Set());
   },[]);
+  // Clear the SELECTED tasks (not just selId) from the active view. Acts on
+  // the selection, unlike "Clear checked" which sweeps every status-bearing
+  // task. Only clearable selected tasks (a real status — not blank/urgent)
+  // are affected, since a status-less task has nothing to clear. Subtrees come
+  // along.
+  const clearSelectedFromActive=useCallback(()=>{
+    setTasks(prev=>{
+      const clearable=[...selIds].filter(id=>{const t=prev.find(x=>x.id===id);return t&&t.status&&t.status!=='u';});
+      if(clearable.length===0)return prev;
+      const ids = expandToSubtreeIds(clearable, prev);
+      return prev.map(t=>ids.has(t.id)?{...t,activeVisible:false}:t);
+    });
+    clearSelection();
+  },[selIds,clearSelection]);
+  // How many selected tasks are actually clearable — drives the button.
+  const clearableSelCount=useMemo(()=>[...selIds].filter(id=>{const t=tasks.find(x=>x.id===id);return t&&t.status&&t.status!=='u';}).length,[selIds,tasks]);
   // Ctrl/Cmd-aware row click. Without modifier: replace selection with this id.
   // With modifier: toggle this id. selId follows: if adding, it becomes the
   // newly-added id; if removing, it falls back to another selected task (or
@@ -4511,7 +4520,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.8</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.9</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
@@ -5006,14 +5015,14 @@ function TaskFlow({ session, onSignOut }){
                     onKeyDown={e=>{if(e.key==='Enter'&&input.trim()){const parentTask=selTask&&tasks.some(t=>t.parentId===selTask.id)?selTask:null;addTask(input,null,null,null,parentTask?parentTask.id:null);setInput('');}}}
                     placeholder={selTask&&tasks.some(t=>t.parentId===selTask.id)?"Add subtask to "+selTask.title+"...":"Add a task... (#W for Work, #H for Home, etc.)"}
                     style={{flex:1,border:'none',outline:'none',fontSize:17,fontFamily:'var(--font-sans)',color:'var(--c-text)',background:'transparent',padding:'4px 0'}}/>
-                  {selTask&&selTask.status&&selTask.status!==''&&selTask.status!=='u'&&(
-                    <button onClick={()=>{hideFromActive(selTask.id);clearSelection();}}
+                  {clearableSelCount>0&&(
+                    <button onClick={clearSelectedFromActive}
                       style={{border:'1px solid var(--c-surface-cool-2)',borderRadius:6,padding:'5px 14px',fontSize:13,cursor:'pointer',
                         background:'var(--c-accent-08)',color:'var(--c-accent)',fontFamily:"'JetBrains Mono',monospace",fontWeight:600,
                         transition:'all 0.15s',whiteSpace:'nowrap'}}
                       onMouseEnter={e=>e.currentTarget.style.background='var(--c-accent-16)'}
                       onMouseLeave={e=>e.currentTarget.style.background='var(--c-accent-08)'}>
-                      Clear selected
+                      {clearableSelCount>1?`Clear selected (${clearableSelCount})`:'Clear selected'}
                     </button>
                   )}
                   {hasChecked&&<button onClick={clearChecked}
