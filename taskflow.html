@@ -615,12 +615,15 @@ function describeRecurrence(rec){
   return'';
 }
 
+/* When a labeled task matures (Tomorrow 24h, Weekly 7d, Monthly 30d after the
+   label was set), it resurfaces in the Active view but KEEPS its label, and
+   statusChanged re-arms so it keeps reminding on that cadence until acted on. */
 function processAutoReturns(tasks){
   const n=msNow();let changed=false;
   const out=tasks.map(t=>{
     if(t.autoReturn&&t.statusChanged&&AUTO_RETURN_MS[t.status]){
       if(n-new Date(t.statusChanged).getTime()>=AUTO_RETURN_MS[t.status]){
-        changed=true;return{...t,status:'',statusChanged:now(),autoReturn:true};
+        changed=true;return{...t,statusChanged:now(),activeVisible:true};
       }
     }
     return t;
@@ -628,12 +631,15 @@ function processAutoReturns(tasks){
   return{tasks:out,changed};
 }
 
+/* Due-soon tasks resurface in the Active view too, also keeping their label.
+   Only fires on hidden tasks (activeVisible:false) — since the status no
+   longer changes, that guard is what prevents re-triggering every tick. */
 function processDueDates(tasks){
   const n=msNow();let changed=false;
   const out=tasks.map(t=>{
-    if(t.dueDate&&t.status!==''&&t.status!=='x'&&t.status!=='s'&&t.status!=='u'){
+    if(t.dueDate&&!t.activeVisible&&t.status!==''&&t.status!=='x'&&t.status!=='s'&&t.status!=='u'){
       const diff=new Date(t.dueDate).getTime()-n;
-      if(diff<=DUE_SOON_MS&&diff>-86400000*30){changed=true;return{...t,status:'',statusChanged:now()};}
+      if(diff<=DUE_SOON_MS&&diff>-86400000*30){changed=true;return{...t,activeVisible:true};}
     }
     return t;
   });
@@ -4520,7 +4526,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.0.9</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.1.0</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
