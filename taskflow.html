@@ -3875,6 +3875,13 @@ function TaskFlow({ session, onSignOut }){
   // apply a stale (or null) target and appear to "snap back to the start".
   const dragSetRef=useRef(null);
   const dropTargetRef=useRef(null);
+  // Shift+click range select. rangeAnchorRef = the last row clicked WITHOUT
+  // shift (the origin a range extends from). flatVisibleIdsRef mirrors the
+  // exact top-to-bottom render order so a range means "every row on screen
+  // between the anchor and the clicked row". Both are refs so the click
+  // handler reads current values without re-creating on every selection.
+  const rangeAnchorRef=useRef(null);
+  const flatVisibleIdsRef=useRef([]);
   const vp = useViewport();
   const[sidebarOpen,setSidebarOpen]=useState(() => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -4191,10 +4198,12 @@ function TaskFlow({ session, onSignOut }){
 
   /* ── Selection helpers — single source of truth for selId + selIds ── */
   const selectOne=useCallback(id=>{
+    rangeAnchorRef.current=id; // a plain select re-anchors future shift-ranges
     setSelId(id);
     setSelIds(id?new Set([id]):new Set());
   },[]);
   const clearSelection=useCallback(()=>{
+    rangeAnchorRef.current=null;
     setSelId(null);
     setSelIds(new Set());
   },[]);
@@ -4215,12 +4224,34 @@ function TaskFlow({ session, onSignOut }){
   },[selIds,clearSelection]);
   // How many selected tasks are actually clearable — drives the button.
   const clearableSelCount=useMemo(()=>[...selIds].filter(id=>{const t=tasks.find(x=>x.id===id);return t&&t.status&&t.status!=='u';}).length,[selIds,tasks]);
-  // Ctrl/Cmd-aware row click. Without modifier: replace selection with this id.
-  // With modifier: toggle this id. selId follows: if adding, it becomes the
-  // newly-added id; if removing, it falls back to another selected task (or
-  // null) so the right panel doesn't show a "deselected" task.
+  // Modifier-aware row click.
+  //  • Shift: select the contiguous range from the anchor to this row, in
+  //    on-screen order (replaces the current selection). The anchor stays put
+  //    so repeated shift-clicks re-extend from the same origin.
+  //  • Ctrl/Cmd: toggle this id and re-anchor to it. selId follows: if adding,
+  //    it becomes the newly-added id; if removing, it falls back to another
+  //    selected task (or null) so the right panel doesn't show a "deselected"
+  //    task.
+  //  • No modifier: replace selection with this id (via selectOne, which also
+  //    re-anchors).
   const handleRowClick=useCallback((id,e)=>{
+    if(e&&e.shiftKey){
+      const flat=flatVisibleIdsRef.current;
+      const to=flat.indexOf(id);
+      if(to<0){selectOne(id);return;} // clicked row not visible — fall back
+      const anchor=rangeAnchorRef.current;
+      let from=anchor!=null?flat.indexOf(anchor):-1;
+      // No live anchor (nothing clicked yet, or the anchor scrolled out of the
+      // visible set): treat this row as the origin so the NEXT shift-click can
+      // extend a range from here.
+      if(from<0){from=to;rangeAnchorRef.current=id;}
+      const[lo,hi]=from<=to?[from,to]:[to,from];
+      setSelIds(new Set(flat.slice(lo,hi+1)));
+      setSelId(id);                   // focus the right panel on the clicked row
+      return;                         // anchor intentionally left unchanged
+    }
     if(e&&(e.ctrlKey||e.metaKey)){
+      rangeAnchorRef.current=id;      // a ctrl toggle re-anchors future ranges
       const wasSelected=selIds.has(id);
       setSelIds(prev=>{
         const n=new Set(prev);
@@ -4454,6 +4485,26 @@ function TaskFlow({ session, onSignOut }){
     return Object.entries(g).sort(([a],[b])=>b.localeCompare(a));
   },[filtered,view]);
 
+  // Flat list of task IDs in exact top-to-bottom render order — depth-first,
+  // respecting collapse and the same child sort as renderTaskWithChildren.
+  // This is what a shift+click range walks. Active view uses `filtered`;
+  // status/all views use `grouped` (date-bucketed) in their rendered order.
+  const flatVisibleIds=useMemo(()=>{
+    const out=[];
+    const walk=task=>{
+      out.push(task.id);
+      if(task.collapsed)return;
+      tasks.filter(t=>t.parentId===task.id)
+        .sort((a,b)=>(a.order??9999)-(b.order??9999))
+        .forEach(walk);
+    };
+    if(view==='active')filtered.forEach(walk);
+    else if(grouped)grouped.forEach(([,dayTasks])=>dayTasks.forEach(walk));
+    return out;
+  },[tasks,filtered,grouped,view]);
+  // Keep the ref current so handleRowClick (defined earlier) reads live order.
+  flatVisibleIdsRef.current=flatVisibleIds;
+
   const counts=useMemo(()=>{
     // Count active tasks the way the user sees them: a task only counts if
     // every ancestor is also activeVisible. Without the ancestor walk we
@@ -4533,7 +4584,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.1.1</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.2.0</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
