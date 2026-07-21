@@ -615,35 +615,35 @@ function describeRecurrence(rec){
   return'';
 }
 
-/* When a labeled task matures (Tomorrow 24h, Weekly 7d, Monthly 30d after the
-   label was set), it resurfaces in the Active view but KEEPS its label, and
-   statusChanged re-arms so it keeps reminding on that cadence until acted on. */
+/* Snooze timer — runs ONLY on cleared tasks (hidden from Active). When a
+   cleared Tomorrow/Weekly/Monthly task matures (24h/7d/30d after clearing),
+   it RETURNS to the Active view keeping its label; since it's now
+   activeVisible it also leaves its status tab (those show cleared tasks
+   only). A labeled task sitting in Active is inert — the timer re-arms only
+   when the user clears it again. Returns cascade to the task's cleared
+   subtree so children don't stay stranded invisible. */
 function processAutoReturns(tasks){
-  const n=msNow();let changed=false;
-  const out=tasks.map(t=>{
-    if(t.autoReturn&&t.statusChanged&&AUTO_RETURN_MS[t.status]){
-      if(n-new Date(t.statusChanged).getTime()>=AUTO_RETURN_MS[t.status]){
-        changed=true;return{...t,statusChanged:now(),activeVisible:true};
-      }
-    }
-    return t;
-  });
-  return{tasks:out,changed};
+  const n=msNow();
+  const matured=tasks.filter(t=>t.autoReturn&&!t.activeVisible&&t.statusChanged&&AUTO_RETURN_MS[t.status]
+    &&n-new Date(t.statusChanged).getTime()>=AUTO_RETURN_MS[t.status]).map(t=>t.id);
+  if(!matured.length)return{tasks,changed:false};
+  const ids=expandToSubtreeIds(matured,tasks);
+  return{tasks:tasks.map(t=>ids.has(t.id)?{...t,activeVisible:true}:t),changed:true};
 }
 
-/* Due-soon tasks resurface in the Active view too, also keeping their label.
-   Only fires on hidden tasks (activeVisible:false) — since the status no
-   longer changes, that guard is what prevents re-triggering every tick. */
+/* Due-soon: a CLEARED labeled task whose due date is near returns to Active
+   early (label kept), same as a matured snooze. Only fires on hidden tasks —
+   that guard is what prevents re-triggering every tick. */
 function processDueDates(tasks){
-  const n=msNow();let changed=false;
-  const out=tasks.map(t=>{
-    if(t.dueDate&&!t.activeVisible&&t.status!==''&&t.status!=='x'&&t.status!=='s'&&t.status!=='u'){
-      const diff=new Date(t.dueDate).getTime()-n;
-      if(diff<=DUE_SOON_MS&&diff>-86400000*30){changed=true;return{...t,activeVisible:true};}
-    }
-    return t;
-  });
-  return{tasks:out,changed};
+  const n=msNow();
+  const due=tasks.filter(t=>{
+    if(!t.dueDate||t.activeVisible||t.status===''||t.status==='x'||t.status==='s'||t.status==='u')return false;
+    const diff=new Date(t.dueDate).getTime()-n;
+    return diff<=DUE_SOON_MS&&diff>-86400000*30;
+  }).map(t=>t.id);
+  if(!due.length)return{tasks,changed:false};
+  const ids=expandToSubtreeIds(due,tasks);
+  return{tasks:tasks.map(t=>ids.has(t.id)?{...t,activeVisible:true}:t),changed:true};
 }
 
 /* Expand a set of task IDs to include every descendant in the given list.
@@ -1385,12 +1385,14 @@ function TaskRow({task,idx,isSelected,onSelect,onUpdate,onChangeStatus,onDragSta
   const donEdit=()=>{setEditing(false);if(editVal.trim()&&editVal!==task.title)onUpdate({...task,title:editVal.trim()});};
 
   const retInfo=useMemo(()=>{
-    if(!task.autoReturn||!task.statusChanged||!AUTO_RETURN_MS[task.status])return null;
+    // Timer is armed only while cleared (hidden from Active) — a labeled task
+    // sitting in Active is inert, so no countdown there.
+    if(!task.autoReturn||task.activeVisible||!task.statusChanged||!AUTO_RETURN_MS[task.status])return null;
     const rem=new Date(task.statusChanged).getTime()+AUTO_RETURN_MS[task.status]-msNow();
     if(rem<=0)return'now';
     const h=Math.floor(rem/3600000),d=Math.floor(h/24);
     return d>0?d+'d '+(h%24)+'h':h+'h';
-  },[task.statusChanged,task.status,task.autoReturn]);
+  },[task.statusChanged,task.status,task.autoReturn,task.activeVisible]);
 
   const overdue=task.dueDate&&new Date(task.dueDate)<new Date();
   const soon=task.dueDate&&!overdue&&(new Date(task.dueDate).getTime()-msNow())<=DUE_SOON_MS;
@@ -4171,7 +4173,8 @@ function TaskFlow({ session, onSignOut }){
       // with a hidden parent.
       const rootIds = prev.filter(t=>t.status!==''&&t.status!=='u'&&t.activeVisible).map(t=>t.id);
       const ids = expandToSubtreeIds(rootIds, prev);
-      return prev.map(t=>ids.has(t.id)?{...t,activeVisible:false}:t);
+      // Snoozable statuses re-anchor their timer to the moment of clearing.
+      return prev.map(t=>ids.has(t.id)?{...t,activeVisible:false,statusChanged:AUTO_RETURN_MS[t.status]?now():t.statusChanged}:t);
     });
   },[]);
 
@@ -4205,7 +4208,8 @@ function TaskFlow({ session, onSignOut }){
       const clearable=[...selIds].filter(id=>{const t=prev.find(x=>x.id===id);return t&&t.status&&t.status!=='u';});
       if(clearable.length===0)return prev;
       const ids = expandToSubtreeIds(clearable, prev);
-      return prev.map(t=>ids.has(t.id)?{...t,activeVisible:false}:t);
+      // Snoozable statuses re-anchor their timer to the moment of clearing.
+      return prev.map(t=>ids.has(t.id)?{...t,activeVisible:false,statusChanged:AUTO_RETURN_MS[t.status]?now():t.statusChanged}:t);
     });
     clearSelection();
   },[selIds,clearSelection]);
@@ -4405,7 +4409,9 @@ function TaskFlow({ session, onSignOut }){
     let f;
     if(view==='active')f=taskList.filter(t=>t.activeVisible);
     else if(view==='all')f=[...taskList];
-    else f=taskList.filter(t=>t.status===view);
+    /* Status tabs hold CLEARED tasks only — a task marked weekly/done/etc.
+       stays (only) in Active until "Clear checked" moves it to its tab. */
+    else f=taskList.filter(t=>t.status===view&&!t.activeVisible);
     if(catFilter)f=f.filter(t=>t.category===catFilter);
     if(search){const q=search.toLowerCase();f=f.filter(t=>t.title.toLowerCase().includes(q)||(t.notes&&t.notes.toLowerCase().includes(q)));}
     // Filter to include only top-level tasks (parentId is null or undefined)
@@ -4465,7 +4471,8 @@ function TaskFlow({ session, onSignOut }){
       }
       if(activeChain)c.active++;
       if(t.status===''||t.status==='u'){/* already counted above */}
-      else if(c[t.status]!==undefined)c[t.status]++;
+      // Status tabs show cleared tasks only, so count only those.
+      else if(c[t.status]!==undefined&&!t.activeVisible)c[t.status]++;
     });
     return c;
   },[tasks]);
@@ -4526,7 +4533,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.1.0</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.1.1</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
