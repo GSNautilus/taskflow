@@ -3849,9 +3849,46 @@ function useViewport(){
 /* ══════════════════════════════════════════
    ── Main App ──
    ══════════════════════════════════════════ */
+/* ── Keep edits the user makes while the cloud sync is in flight ──
+   The sync takes a snapshot of local state when it starts, reads the cloud
+   (several round trips), then applies the cloud copy. Anything changed between
+   snapshot and apply is a local edit the cloud has never seen, so it is
+   replayed on top of the cloud copy instead of being thrown away. Untouched
+   tasks still come from the cloud, so other devices' changes land as before.
+   Pure functions: no side effects, safe to call from anywhere.              */
+function mergeSyncWindowTasks(cloud, base, local) {
+  const baseMap  = new Map(base.map(t => [t.id, t]));
+  const localMap = new Map(local.map(t => [t.id, t]));
+  const cloudMap = new Map(cloud.map(t => [t.id, t]));
+  const out = [];
+  for (const t of cloud) {
+    const b = baseMap.get(t.id), l = localMap.get(t.id);
+    if (b && !l) continue;                                                       // deleted during sync
+    if (b && l && JSON.stringify(b) !== JSON.stringify(l)) { out.push(l); continue; } // edited during sync
+    out.push(t);                                                                 // untouched: cloud wins
+  }
+  for (const t of local) {
+    if (!baseMap.has(t.id) && !cloudMap.has(t.id)) out.push(t);                  // created during sync
+  }
+  return out;
+}
+
+function mergeSyncWindowCats(cloud, base, local) {
+  const out = { ...cloud };
+  for (const k of Object.keys(local)) {
+    if (JSON.stringify(base[k]) !== JSON.stringify(local[k])) out[k] = local[k];
+  }
+  for (const k of Object.keys(base)) {
+    if (!(k in local)) delete out[k];
+  }
+  return out;
+}
+
 function TaskFlow({ session, onSignOut }){
   const[tasks,setTasks]=useState(()=>loadLS(TASK_KEY,[]));
   const[categories,setCategories]=useState(()=>loadLS(CAT_KEY,DEFAULT_CATEGORIES));
+  const tasksRef=useRef(tasks); tasksRef.current=tasks;
+  const categoriesRef=useRef(categories); categoriesRef.current=categories;
   const[cloudStatus,setCloudStatus]=useState(session?'syncing':'offline'); // 'synced'|'syncing'|'offline'|'error'
   const[view,setView]=useState('active');
   const[selId,setSelId]=useState(null);
@@ -3974,7 +4011,10 @@ function TaskFlow({ session, onSignOut }){
     const tasksWithDefaults=tasks.map(t=>({...t,parentId:t.parentId??null,collapsed:t.collapsed??false,activeVisible:t.activeVisible??(t.status===''||t.status==='u'?true:false)}));
     const{tasks:p1,changed:c1}=processAutoReturns(tasksWithDefaults);
     const{tasks:p2,changed:c2}=processDueDates(p1);
-    if(c1||c2){setTasks(p2);saveLS(TASK_KEY,p2);}
+    // The sync effect below runs right after this one and snapshots tasksRef;
+    // pointing it at p2 keeps this load-time processing from looking like a
+    // user edit made during the sync.
+    if(c1||c2){setTasks(p2);saveLS(TASK_KEY,p2);tasksRef.current=p2;}
   },[]);
 
   // ── Supabase: initial sync on mount (re-runnable via syncAttempt) ──
@@ -3994,6 +4034,8 @@ function TaskFlow({ session, onSignOut }){
     sbSyncingRef.current = true;
     disableCloudWrites();
     setCloudStatus('syncing');
+    const baseTasks = tasksRef.current;
+    const baseCats  = categoriesRef.current;
     (async () => {
       try {
         // ── Phase 1: READ everything from cloud. Any throw aborts before
@@ -4043,11 +4085,18 @@ function TaskFlow({ session, onSignOut }){
         // ── Phase 2: APPLY to React state + localStorage. No cloud writes
         //    happen here; debouncedSaveSB is still gated (disableCloudWrites
         //    above), so the persist useEffects below trigger LS-only saves.
+        //    Edits made while Phase 1 was reading are replayed on top of the
+        //    cloud copy rather than discarded (see mergeSyncWindowTasks).
+        const tasksDirty = tasksRef.current !== baseTasks;
+        const catsDirty  = categoriesRef.current !== baseCats;
+        let mergedTasks = null, mergedCats = null;
         if (Array.isArray(sbTasks)) {                  // cloud wins — including []
-          setTasks(sbTasks);
+          mergedTasks = tasksDirty ? mergeSyncWindowTasks(sbTasks, baseTasks, tasksRef.current) : sbTasks;
+          setTasks(mergedTasks);
         }
         if (sbCats && typeof sbCats === 'object') {    // cloud wins — including {}
-          setCategories(sbCats);
+          mergedCats = catsDirty ? mergeSyncWindowCats(sbCats, baseCats, categoriesRef.current) : sbCats;
+          setCategories(mergedCats);
         }
         if (sbMainTab) {
           setMainTabRaw(sbMainTab);
@@ -4106,6 +4155,12 @@ function TaskFlow({ session, onSignOut }){
         // All reads succeeded AND writes are now consistent — enable reactive cloud writes
         enableCloudWrites();
         resetSBWriteFailures(); // any prior write-failure error state is moot
+
+        // Edits replayed in Phase 2 were made while cloud writes were gated,
+        // so nothing has sent them up yet.
+        if (mergedTasks && tasksDirty) await saveSB(TASK_KEY, mergedTasks);
+        if (mergedCats && catsDirty)   await saveSB(CAT_KEY, mergedCats);
+
         setCloudStatus('synced');
 
         // Create login backup ONLY after a confirmed successful sync. Skipping
@@ -4133,6 +4188,7 @@ function TaskFlow({ session, onSignOut }){
   useEffect(()=>{
     const iv=setInterval(()=>{
       setTasks(prev=>{
+        if(sbSyncingRef.current)return prev; // would read as a user edit to the sync merge; next tick catches up
         const{tasks:p1,changed:c1}=processAutoReturns(prev);
         const{tasks:p2,changed:c2}=processDueDates(p1);
         return(c1||c2)?p2:prev;
@@ -4584,7 +4640,7 @@ function TaskFlow({ session, onSignOut }){
           {sidebarOpen?(
             <span style={{fontWeight:700,fontSize:22,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,lineHeight:1,display:'flex',alignItems:'baseline',gap:8}}>
               <span><span style={{background:'linear-gradient(135deg,#e0e4ea,#b0b8c8)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Task</span><span style={{background:'linear-gradient(135deg,var(--c-accent),#b080e0)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span></span>
-              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.2.0</span>
+              <span style={{fontSize:10,fontWeight:400,color:'var(--c-text-muted-5)',letterSpacing:0}}>v0.2.3.0</span>
             </span>
           ):(
             <span style={{fontWeight:700,fontSize:18,fontFamily:"'JetBrains Mono',monospace",letterSpacing:-0.5,display:'flex',alignItems:'center',justifyContent:'center',width:34}}>
